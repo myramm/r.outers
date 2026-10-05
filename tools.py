@@ -231,10 +231,19 @@ def execute_tool(name, args, auto_approve=False):
                 watcher.stop()
 
             elapsed = time.time() - start_time
+            if stdout.strip():
+                for line in stdout.strip().splitlines()[:25]:
+                    console.print(f"  [dim]{line}[/dim]")
+                if len(stdout.strip().splitlines()) > 25:
+                    console.print(f"  [dim]...({len(stdout.strip().splitlines()) - 25} baris lainnya)[/dim]")
+            if stderr.strip():
+                for line in stderr.strip().splitlines()[:15]:
+                    console.print(f"  [dim red]{line}[/dim red]")
+
             if proc.returncode == 0:
-                console.print(f"[bold green]✔ RTS > Completed[/bold green] [dim]({elapsed:.1f}s)[/dim]")
+                console.print(f"[bold green]✔ RTS > Completed[/bold green] [dim]({elapsed:.1f}s)[/dim]\n")
             else:
-                console.print(f"[bold red]✘ RTS > Failed (Exit code: {proc.returncode})[/bold red] [dim]({elapsed:.1f}s)[/dim]")
+                console.print(f"[bold red]✘ RTS > Failed (Exit code: {proc.returncode})[/bold red] [dim]({elapsed:.1f}s)[/dim]\n")
 
             out = (stdout + "\n" + stderr).strip()
             return f"Returncode: {proc.returncode}\nOutput:\n{out}" if out else f"Returncode: {proc.returncode}\n(No output)"
@@ -246,7 +255,8 @@ def execute_tool(name, args, auto_approve=False):
                 return f"Error: File '{fp}' tidak ditemukan."
             with open(fp, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
-            console.print(f"[dim cyan]RTS > Reading {fp}[/dim cyan]")
+            line_count = len(content.splitlines())
+            console.print(f"[dim cyan]RTS > Reading {fp}[/dim cyan] [dim]({line_count} baris)[/dim]")
             return content
 
         elif name == "write_file":
@@ -255,8 +265,9 @@ def execute_tool(name, args, auto_approve=False):
             os.makedirs(os.path.dirname(os.path.abspath(fp)), exist_ok=True)
             with open(fp, "w", encoding="utf-8") as f:
                 f.write(content)
-            console.print(f"[bold green]RTS > Writing {fp}[/bold green]")
-            return f"Sukses menulis {fp}"
+            line_count = len(content.splitlines())
+            console.print(f"[bold green]RTS > Writing {fp}[/bold green] [dim]({line_count} baris, {len(content)} bytes)[/dim]")
+            return f"Sukses menulis {fp} ({line_count} baris)"
 
         elif name == "edit_file":
             fp = args.get("filepath")
