@@ -201,20 +201,21 @@ def main():
     while True:
         full_cfg = load_full_config()
         auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
-        curr_model = config.get('model', 'model')
+        active_prov = full_cfg.get("active_provider", "clouvia")
+        curr_model = config.get('model', 'free-model')
 
         queued_msg = get_next_queued_message()
         if queued_msg:
             user_input = queued_msg
             _, cur_theme = get_current_style_settings()
-            layout = render_prompt_layout("agy", cur_theme, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
+            layout = render_prompt_layout("box", cur_theme, provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
             console.print("")
-            sys.stdout.write(f"\r\033[2K{layout['top_line']}\r\n\033[2K{layout['bottom_prefix']}\033[1;37m{user_input}\033[0m\r\n")
+            sys.stdout.write(f"\r\033[2K{layout['divider']}\r\n\033[2K\033[1;37m{user_input}\033[0m\r\n\033[2K{layout['divider']}\r\n\033[2K\r\n\033[2K{layout['status_footer']}\r\n")
             sys.stdout.flush()
         else:
             try:
                 console.print("")
-                user_input = get_smart_input(model_name=curr_model, auto_approve=auto_approve)
+                user_input = get_smart_input(provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve)
             except (KeyboardInterrupt, EOFError):
                 console.print("\n[yellow]Keluar...[/yellow]")
                 break

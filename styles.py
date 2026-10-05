@@ -214,14 +214,6 @@ COLOR_SCHEMES = [
 THEMES_MAP = {s["id"]: s for s in COLOR_SCHEMES}
 THEMES = THEMES_MAP
 
-PROMPT_STYLES = {
-    "agy": {
-        "id": "agy",
-        "name": "Agy Double-Line",
-        "desc": "╭─ ⚡ [rts:model] · Termux · Auto\n╰─❯ "
-    }
-}
-
 def get_current_style_settings():
     full_cfg = load_full_config()
     settings = full_cfg.get("settings", {})
@@ -230,46 +222,49 @@ def get_current_style_settings():
     if theme_id not in THEMES_MAP:
         theme_id = "terminal"
         
-    return "agy", theme_id
+    return "box", theme_id
 
 def set_style_settings(style_id=None, theme_id=None):
     full_cfg = load_full_config()
     if "settings" not in full_cfg or not isinstance(full_cfg["settings"], dict):
         full_cfg["settings"] = {}
     
-    full_cfg["settings"]["prompt_style"] = "agy"
+    full_cfg["settings"]["prompt_style"] = "box"
     if theme_id and theme_id in THEMES_MAP:
         full_cfg["settings"]["theme"] = theme_id
         
     save_full_config(full_cfg)
 
-def render_prompt_layout(style_id="agy", theme_id="terminal", model_name="free-model", auto_approve=True, current_input="", cursor_col=0):
+def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_col=0, term_cols=50):
     scheme = THEMES_MAP.get(theme_id, THEMES_MAP["terminal"])
     p = scheme["palette"]
     perm_str = "Auto" if auto_approve else "Ask"
-    perm_icon = "⚡" if auto_approve else "🛡️"
+    
+    div_width = max(30, min(term_cols, 60))
+    divider = f"{p['dim']}{'─' * div_width}\033[0m"
     
     short_model = model_name.split("/")[-1].split(":")[0]
-    if len(short_model) > 24:
-        short_model = short_model[:22] + ".."
+    prov_id = provider_name.split()[0].lower()
 
     cursor_block = "\033[42m \033[0m"
     before = current_input[:cursor_col]
     after = current_input[cursor_col:]
     input_rendered = f"{before}{cursor_block}{after}"
 
-    # Permanent Agy Prompt Format:
-    # ╭─ ⚡ [rts:<model>] · Termux · Auto
-    # ╰─❯ [input]
-    top_line = f"{p['bracket']}╭─\033[0m \033[1;33m{perm_icon}\033[0m {p['bracket']}[{p['prompt_user']}rts{p['bracket']}:{p['prompt_arrow']}{short_model}{p['bracket']}]\033[0m {p['dim']}·\033[0m {p['accent']}Termux\033[0m {p['dim']}·\033[0m {p['diff_add']}{perm_str}\033[0m"
-    bottom_prefix = f"{p['bracket']}╰─{p['prompt_arrow']}❯\033[0m "
-    
+    # Exact Layout:
+    # ──────────────────────────────
+    # Hai
+    # ──────────────────────────────
+    #
+    # provider:model • Auto • Ready
+    status_footer = f"{p['prompt_user']}{prov_id}:{short_model}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}•\033[0m \033[32mReady\033[0m"
+
     return {
-        "type": "double_top",
-        "top_line": top_line,
-        "bottom_prefix": bottom_prefix,
-        "prefix_visible_len": 4,
-        "input_rendered": input_rendered
+        "divider": divider,
+        "input_rendered": input_rendered,
+        "status_footer": status_footer,
+        "cursor_col": len(before),
+        "div_width": div_width
     }
 
 def render_split_preview_lines(scheme, width=40):
@@ -380,7 +375,7 @@ def select_style_and_theme_interactive():
                 sel_theme_idx = (sel_theme_idx + 1) % len(themes_list)
             elif k == 'ENTER':
                 chosen_theme = themes_list[sel_theme_idx]["id"]
-                set_style_settings("agy", chosen_theme)
+                set_style_settings("box", chosen_theme)
                 break
                 
     finally:
