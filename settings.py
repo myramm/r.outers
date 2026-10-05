@@ -142,10 +142,14 @@ def show_settings_hub(current_config, auto_approve_ref=None):
         else:
             perm_status = "[Tanya y/n]"
 
+        from client import get_available_skills_list
+        total_skills = len(get_available_skills_list())
+
         items = [
             {"id": "api_key", "label": "🔑 Kelola API Key", "status": f"{active_prov}: {key_status}"},
             {"id": "provider", "label": "📡 Ganti / Tambah Provider", "status": f"[{active_prov}]"},
             {"id": "model", "label": "🤖 Pilih Model AI", "status": f"[{curr_model}]"},
+            {"id": "skills", "label": "⚡ Kelola & Tambah Skill", "status": f"[{total_skills} Skill]"},
             {"id": "permission", "label": "🛡️ Izin Eksekusi Shell", "status": perm_status},
             {"id": "memory", "label": "🧠 Kelola Memori Agent", "status": "[Global/Proyek]"},
             {"id": "test", "label": "🧪 Test Endpoint (Ping API)", "status": "[Uji Latency]"},
@@ -223,6 +227,10 @@ def show_settings_hub(current_config, auto_approve_ref=None):
         elif chosen_action == "model":
             from selector import select_model_interactive
             current_config = select_model_interactive(get_active_config())
+
+        elif chosen_action == "skills":
+            from skill_manager import show_skills_interactive_menu
+            show_skills_interactive_menu()
 
         elif chosen_action == "permission":
             handle_permission_settings_interactive(full_cfg, auto_approve_ref)

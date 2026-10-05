@@ -78,14 +78,30 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell (Auto-Approve / Tanya y/n), Model, Provider, Reset |
+| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell, Kelola Skill, Model, Provider, Reset |
+| `/skills` | **Pusat Manajemen Skill**: Menu interaktif untuk lihat, pasang dari URL GitHub, atau hapus skill |
+| `/add-skill` *[url]* | **Pasang Skill Baru**: Unduh dan pasang skill langsung dari URL repository GitHub |
 | `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard |
-| `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (Clouvia, Atria, Custom Provider) |
-| `/skills` | **Daftar Skill Terpasang**: Lihat 40+ spesialisasi (Anti-Slop, Superpowers, dll) |
+| `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (Clouvia, Atria, NVIDIA NIM, Custom) |
 | `/list` | Tabel daftar lengkap semua Provider & Model yang tersedia |
 | `/memory` | Lihat dan kelola memori proyek yang tersimpan |
 | `/clear` | Bersihkan riwayat chat dan context sesi aktif |
 | `/exit` *(atau `/quit`)* | Keluar dari CLI secara bersih (*atau tekan `Ctrl + D`*) |
+
+---
+
+## ⚡ Cara Menambah Skill Baru ke `rts`
+
+Anda dapat memasang skill baru (misalnya dari GitHub) dengan mudah:
+
+```bash
+# Melalui perintah langsung di dalam rts CLI:
+/add-skill https://github.com/owner/nama-skill
+
+# Atau buka menu interaktif:
+/skills
+```
+> Skill yang dipasang akan otomatis tersimpan di folder `skills/` dan langsung dikenali oleh AI!
 
 ---
 

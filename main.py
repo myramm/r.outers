@@ -205,7 +205,26 @@ def main():
                 show_all_providers_and_models(config)
                 continue
             elif cmd_lower in ["/skills", "/skill"]:
-                show_skills_table()
+                from skill_manager import show_skills_interactive_menu, install_skill_from_url
+                if len(parts) > 1 and parts[1].strip():
+                    sub = parts[1].strip()
+                    if sub.lower().startswith("add "):
+                        install_skill_from_url(sub[4:].strip())
+                    elif sub.lower() == "list":
+                        show_skills_table()
+                    else:
+                        install_skill_from_url(sub)
+                else:
+                    show_skills_interactive_menu()
+                continue
+            elif cmd_lower in ["/add-skill", "/addskill"]:
+                from skill_manager import install_skill_from_url
+                if len(parts) > 1 and parts[1].strip():
+                    install_skill_from_url(parts[1].strip())
+                else:
+                    url = Prompt.ask("\n[bold cyan]Masukkan URL GitHub / repo skill (contoh: https://github.com/owner/repo)[/bold cyan]").strip()
+                    if url:
+                        install_skill_from_url(url)
                 continue
             elif cmd_lower in ["/setup", "/config", "/pengaturan", "/settings"]:
                 auto_ref = [auto_approve]
@@ -217,10 +236,11 @@ def main():
                 continue
             elif cmd_lower == "/help":
                 console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)
+• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
 • [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /m)
 • [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API (atau /p)
-• [bold cyan]/skills[/bold cyan]             : Tabel daftar skill spesialisasi terpasang
+• [bold cyan]/skills[/bold cyan]             : Pusat Manajemen Skill (Lihat, Tambah dari GitHub, Hapus)
+• [bold cyan]/add-skill[/bold cyan] [url]     : Download & pasang skill langsung dari URL GitHub
 • [bold cyan]/list[/bold cyan]               : Tabel daftar Provider & Model AI
 • [bold cyan]/memory[/bold cyan]             : Lihat memori agent
 • [bold cyan]/clear[/bold cyan]              : Bersihkan riwayat chat sesi ini
