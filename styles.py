@@ -212,6 +212,7 @@ COLOR_SCHEMES = [
 ]
 
 THEMES_MAP = {s["id"]: s for s in COLOR_SCHEMES}
+THEMES = THEMES_MAP
 
 PROMPT_STYLES = {
     "agy": {
