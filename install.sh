@@ -9,7 +9,7 @@ echo -e "\033[1;36m==========================================\033[0m"
 echo -e "\n\033[1;33m[1/4] Memeriksa & menginstall dependencies...\033[0m"
 if command -v pkg >/dev/null 2>&1; then
     pkg update -y
-    pkg install -y python python-pip git curl 2>/dev/null || pkg install -y python git curl
+    pkg install -y libexpat python python-pip git curl 2>/dev/null || pkg install -y libexpat python git curl
 elif command -v apt-get >/dev/null 2>&1; then
     apt-get update -y
     apt-get install -y python3 python3-pip git curl
