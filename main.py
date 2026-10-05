@@ -209,7 +209,7 @@ def main():
             sub_info = f"{perm_icon} {display_model}  ·  {perm_mode_str}  ·  Ready"
             prompt_str = "\033[1;36mr.outers >\033[0m"
             console.print("")
-            user_input = get_smart_input(prompt_str, sub_info=sub_info)
+            user_input = get_smart_input(model_name=curr_model, auto_approve=auto_approve)
         except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow]Keluar...[/yellow]")
             break
@@ -231,6 +231,10 @@ def main():
                 os.system("clear")
                 show_banner()
                 console.print("[bold green]✔ Riwayat percakapan & layar dibersihkan. Konteks AI telah direfresh.[/bold green]")
+                continue
+            elif cmd_lower in ["/style", "/styles", "/theme", "/themes", "/prompt-style"]:
+                from styles import select_style_and_theme_interactive
+                select_style_and_theme_interactive()
                 continue
             elif cmd_lower in ["/model", "/m"]:
                 if len(parts) > 1 and parts[1].strip():
@@ -280,6 +284,7 @@ def main():
             elif cmd_lower == "/help":
                 console.print(Panel("""[bold]Perintah Tersedia:[/bold]
 • [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
+• [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]  : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)
 • [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /m)
 • [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API (atau /p)
 • [bold cyan]/skills[/bold cyan]             : Pusat Manajemen Skill (Lihat, Tambah dari GitHub, Hapus)

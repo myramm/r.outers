@@ -53,6 +53,7 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 | Perintah | Deskripsi |
 | :--- | :--- |
 | `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell, Kelola Skill, Model, Provider, Reset Total |
+| `/style` *(atau `/theme`)* | **Terminal Style & Theme (Agy Style)**: Ubah tampilan prompt & palette warna (Agy, Cyber, Powerline, Minimal, Classic) |
 | `/skills` | **Pusat Manajemen Skill**: Menu interaktif untuk lihat daftar, tambah dari GitHub, atau hapus skill |
 | `/add-skill` *[url]* | **Pasang Skill Baru**: Unduh dan pasang skill langsung dari URL repository GitHub |
 | `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard yang responsif |

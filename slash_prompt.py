@@ -3,10 +3,19 @@ import sys
 import select
 import tty
 import termios
+import re
 from ui import console
+from styles import (
+    get_current_style_settings,
+    render_prompt_layout,
+    PROMPT_STYLES,
+    THEMES
+)
 
 SLASH_COMMANDS = [
     {"cmd": "/setup", "desc": "Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)"},
+    {"cmd": "/style", "desc": "Ubah style & tema warna terminal prompt (Agy style)"},
+    {"cmd": "/theme", "desc": "Pilih palette tema warna terminal"},
     {"cmd": "/model", "desc": "Pilih dan ganti model AI aktif (/m)"},
     {"cmd": "/provider", "desc": "Pindah atau tambah Provider API (/p)"},
     {"cmd": "/skills", "desc": "Kelola & lihat daftar skill terpasang"},
@@ -115,8 +124,6 @@ def render_slash_autocomplete(query, matches, selected_idx, width, max_items=5):
 
     return lines
 
-import re
-
 def get_visible_len(s):
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     return len(ansi_escape.sub('', s))
@@ -161,12 +168,14 @@ def clear_popup_lines(count):
     sys.stdout.write("".join(buf))
     sys.stdout.flush()
 
-def get_smart_input(prompt_display_str, sub_info=""):
+def get_smart_input(prompt_display_str="", sub_info="", model_name="nemotron", auto_approve=True):
+    style_id, theme_id = get_current_style_settings()
+
     if not sys.stdin.isatty():
         from rich.prompt import Prompt
         if sub_info:
             console.print(f"\033[90m{sub_info}\033[0m")
-        res = Prompt.ask(prompt_display_str)
+        res = Prompt.ask("r.outers >")
         if res and res.strip():
             append_input_history(res.strip())
         return res
@@ -178,16 +187,24 @@ def get_smart_input(prompt_display_str, sub_info=""):
     cursor_pos = 0
     selected_idx = 0
     last_popup_lines_count = 0
-    prompt_vlen = get_visible_len(prompt_display_str)
     
     history = list(load_input_history())
     history_idx = len(history)
     saved_draft = ""
 
+    # Check style type
+    layout_info = render_prompt_layout(style_id, theme_id, model_name=model_name, auto_approve=auto_approve, current_input="", cursor_col=0)
+    l_type = layout_info["type"]
+
     try:
         tty.setraw(fd)
         sys.stdout.write("\033[?7l")
         sys.stdout.flush()
+
+        # If style is double_top (Agy, Cyber, Powerline), print top line once initially
+        if l_type == "double_top":
+            sys.stdout.write(f"\r\033[2K{layout_info['top_line']}\r\n")
+            sys.stdout.flush()
 
         while True:
             try:
@@ -199,15 +216,16 @@ def get_smart_input(prompt_display_str, sub_info=""):
                 clear_popup_lines(last_popup_lines_count)
                 last_popup_lines_count = 0
 
-            cursor_block = "\033[42m \033[0m"
-            before = current_text[:cursor_pos]
-            after = current_text[cursor_pos:]
-            cursor_col = prompt_vlen + 1 + len(before)
-            
-            if sub_info:
-                prompt_line = f"\r\033[2K{prompt_display_str} {before}{cursor_block}{after}\r\n\033[2K\033[90m{sub_info}\033[0m\033[1A\r\033[{cursor_col}C"
+            # Dynamic layout render for current text & cursor
+            layout = render_prompt_layout(style_id, theme_id, model_name=model_name, auto_approve=auto_approve, current_input=current_text, cursor_col=cursor_pos)
+            prefix_vlen = layout["prefix_visible_len"]
+            cursor_col = prefix_vlen + len(current_text[:cursor_pos])
+
+            if l_type == "double_bottom":
+                s_info = layout.get("sub_info", sub_info)
+                prompt_line = f"\r\033[2K{layout['bottom_prefix']}{layout['input_rendered']}\r\n\033[2K\033[90m{s_info}\033[0m\033[1A\r\033[{cursor_col}C"
             else:
-                prompt_line = f"\r\033[2K{prompt_display_str} {before}{cursor_block}{after}"
+                prompt_line = f"\r\033[2K{layout['bottom_prefix']}{layout['input_rendered']}\r\033[{cursor_col}C"
 
             sys.stdout.write(prompt_line)
             sys.stdout.flush()
@@ -224,17 +242,18 @@ def get_smart_input(prompt_display_str, sub_info=""):
                 popup_lines = render_slash_autocomplete(current_text, matches, selected_idx, term_cols)
                 
                 output_buf = []
-                if sub_info:
-                    output_buf.append(f"\r\n\033[2K\033[90m{sub_info}\033[0m")
+                if l_type == "double_bottom":
+                    s_info = layout.get("sub_info", sub_info)
+                    output_buf.append(f"\r\n\033[2K\033[90m{s_info}\033[0m")
                 for pl in popup_lines:
                     output_buf.append(f"\r\n\033[2K{pl}")
                 
-                up_steps = len(popup_lines) + (1 if sub_info else 0)
+                up_steps = len(popup_lines) + (1 if l_type == "double_bottom" else 0)
                 output_buf.append(f"\033[{up_steps}A\r\033[{cursor_col}C")
                 sys.stdout.write("".join(output_buf))
                 sys.stdout.flush()
                 
-                last_popup_lines_count = len(popup_lines) + (1 if sub_info else 0)
+                last_popup_lines_count = len(popup_lines) + (1 if l_type == "double_bottom" else 0)
 
             k = read_key_raw(fd)
 
@@ -242,10 +261,7 @@ def get_smart_input(prompt_display_str, sub_info=""):
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                if sub_info:
-                    sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n\033[2K\033[90m{sub_info}\033[0m\r\n")
-                else:
-                    sys.stdout.write("\r\n")
+                sys.stdout.write(f"\r\033[2K{layout['bottom_prefix']}{current_text}\r\n")
                 sys.stdout.flush()
                 return ""
 
@@ -254,10 +270,7 @@ def get_smart_input(prompt_display_str, sub_info=""):
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    if sub_info:
-                        sys.stdout.write(f"\r\033[2K{prompt_display_str}\r\n\033[2K\033[90m{sub_info}\033[0m\r\n")
-                    else:
-                        sys.stdout.write("\r\n")
+                    sys.stdout.write(f"\r\033[2K{layout['bottom_prefix']}\r\n")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -322,11 +335,11 @@ def get_smart_input(prompt_display_str, sub_info=""):
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
                 
-                if sub_info:
-                    sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n\033[2K\033[90m{sub_info}\033[0m\r\n")
-                else:
-                    sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n")
+                sys.stdout.write(f"\r\033[2K{layout['bottom_prefix']}{current_text}\r\n")
+                if l_type == "double_bottom":
+                    sys.stdout.write(f"\033[2K\033[90m{layout.get('sub_info', '')}\033[0m\r\n")
                 sys.stdout.flush()
+                
                 res = current_text.strip()
                 if res:
                     append_input_history(res)
@@ -352,7 +365,6 @@ def get_smart_input(prompt_display_str, sub_info=""):
                     cursor_pos += 1
 
             elif k and isinstance(k, str) and not k.startswith(('UP', 'DOWN', 'LEFT', 'RIGHT', 'ESC', 'TAB', 'ENTER', 'BACKSPACE', 'CTRL_', 'SHIFT_', 'PAGE_')):
-                # Mendukung pengetikan karakter tunggal maupun paste teks panjang
                 current_text = current_text[:cursor_pos] + k + current_text[cursor_pos:]
                 cursor_pos += len(k)
                 selected_idx = 0
