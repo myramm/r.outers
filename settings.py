@@ -486,7 +486,7 @@ def handle_system_diagnostics(cfg, auto_approve_ref):
     table.add_column("Komponen", style="bold yellow")
     table.add_column("Nilai / Status", style="white")
 
-    table.add_row("Agent Version", "r.outers v2.0 (Termux & Linux)")
+    table.add_row("Agent Version", "r.outers v1.0.0 (Termux & Linux)")
     table.add_row("Python Version", sys.version.split()[0])
     table.add_row("Current Directory", os.getcwd())
     table.add_row("Config File", CONFIG_FILE)

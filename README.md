@@ -1,6 +1,6 @@
-# ⚡ r.outers (CLI AI Coding Agent for Termux & Linux)
+# ⚡ r.outers (rts v1.0.0)
 
-Autonomous AI Coding Agent bertenaga tinggi yang didesain khusus untuk lingkungan **Android Termux** dan **Linux**. Mendukung eksekusi shell otonom, integrasi multi-provider (Clouvia, Atria, NVIDIA NIM 80+ model), pemilihan model interaktif, dan ekosistem *Skill Manager* (Anti-Slop & Superpowers).
+CLI tool ultra-ringan buat **vibe coding langsung di Android (Termux) & Linux**. Mirip sistem **9routers** / LLM router wrapper, dirancang untuk memudahkan coding lewat smartphone tanpa bloatware berat ala OpenCode. Mendukung eksekusi shell otonom, multi-provider routing (NVIDIA NIM 80+ model, custom endpoint), pemilihan model instan, dan konfigurasi manual `~/.routers_config.json`.
 
 ---
 
