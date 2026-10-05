@@ -38,19 +38,19 @@ def read_key_raw(fd):
             raw = raw + extra
 
     # Escape sequences navigasi
-    if raw in (b'\x1b[A', b'\x1bOA', b'\x1b[1;2A', b'\x1b[1;5A'):
+    if raw.startswith((b'\x1b[A', b'\x1bOA', b'\x1b[1;2A', b'\x1b[1;5A')):
         return 'UP'
-    if raw in (b'\x1b[B', b'\x1bOB', b'\x1b[1;2B', b'\x1b[1;5B'):
+    if raw.startswith((b'\x1b[B', b'\x1bOB', b'\x1b[1;2B', b'\x1b[1;5B')):
         return 'DOWN'
-    if raw in (b'\x1b[C', b'\x1bOC'):
+    if raw.startswith((b'\x1b[C', b'\x1bOC')):
         return 'RIGHT'
-    if raw in (b'\x1b[D', b'\x1bOD'):
+    if raw.startswith((b'\x1b[D', b'\x1bOD')):
         return 'LEFT'
-    if raw in (b'\x1b[5~', b'\x1b[V'):
+    if raw.startswith((b'\x1b[5~', b'\x1b[V')):
         return 'PAGE_UP'
-    if raw in (b'\x1b[6~', b'\x1b[U'):
+    if raw.startswith((b'\x1b[6~', b'\x1b[U')):
         return 'PAGE_DOWN'
-    if raw in (b'\x1b[Z',):
+    if raw.startswith((b'\x1b[Z',)):
         return 'SHIFT_TAB'
     if raw == b'\t':
         return 'TAB'
@@ -121,6 +121,35 @@ def get_visible_len(s):
     ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
     return len(ansi_escape.sub('', s))
 
+HISTORY_FILE = os.path.expanduser("~/.routers_history")
+_GLOBAL_HISTORY = None
+
+def load_input_history():
+    global _GLOBAL_HISTORY
+    if _GLOBAL_HISTORY is None:
+        _GLOBAL_HISTORY = []
+        if os.path.exists(HISTORY_FILE):
+            try:
+                with open(HISTORY_FILE, "r", encoding="utf-8") as f:
+                    _GLOBAL_HISTORY = [line.rstrip("\r\n") for line in f if line.strip()]
+            except Exception:
+                _GLOBAL_HISTORY = []
+    return _GLOBAL_HISTORY
+
+def append_input_history(entry):
+    global _GLOBAL_HISTORY
+    if not entry or not entry.strip():
+        return
+    entry = entry.strip()
+    history = load_input_history()
+    if not history or history[-1] != entry:
+        history.append(entry)
+        try:
+            with open(HISTORY_FILE, "a", encoding="utf-8") as f:
+                f.write(entry + "\n")
+        except Exception:
+            pass
+
 def clear_popup_lines(count):
     if count <= 0:
         return
@@ -137,7 +166,10 @@ def get_smart_input(prompt_display_str, sub_info=""):
         from rich.prompt import Prompt
         if sub_info:
             console.print(f"\033[90m{sub_info}\033[0m")
-        return Prompt.ask(prompt_display_str)
+        res = Prompt.ask(prompt_display_str)
+        if res and res.strip():
+            append_input_history(res.strip())
+        return res
 
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
@@ -147,6 +179,10 @@ def get_smart_input(prompt_display_str, sub_info=""):
     selected_idx = 0
     last_popup_lines_count = 0
     prompt_vlen = get_visible_len(prompt_display_str)
+    
+    history = list(load_input_history())
+    history_idx = len(history)
+    saved_draft = ""
 
     try:
         tty.setraw(fd)
@@ -240,6 +276,14 @@ def get_smart_input(prompt_display_str, sub_info=""):
                     matches = [c for c in SLASH_COMMANDS if q in c["cmd"].lower() or c["cmd"].startswith(q)]
                     if matches:
                         selected_idx = (selected_idx - 1) % len(matches)
+                else:
+                    if history:
+                        if history_idx == len(history):
+                            saved_draft = current_text
+                        if history_idx > 0:
+                            history_idx -= 1
+                            current_text = history[history_idx]
+                            cursor_pos = len(current_text)
 
             elif k in ('DOWN',):
                 if current_text.startswith("/"):
@@ -247,6 +291,15 @@ def get_smart_input(prompt_display_str, sub_info=""):
                     matches = [c for c in SLASH_COMMANDS if q in c["cmd"].lower() or c["cmd"].startswith(q)]
                     if matches:
                         selected_idx = (selected_idx + 1) % len(matches)
+                else:
+                    if history and history_idx < len(history):
+                        history_idx += 1
+                        if history_idx < len(history):
+                            current_text = history[history_idx]
+                            cursor_pos = len(current_text)
+                        else:
+                            current_text = saved_draft
+                            cursor_pos = len(current_text)
 
             elif k == 'TAB':
                 if current_text.startswith("/"):
@@ -274,7 +327,10 @@ def get_smart_input(prompt_display_str, sub_info=""):
                 else:
                     sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n")
                 sys.stdout.flush()
-                return current_text.strip()
+                res = current_text.strip()
+                if res:
+                    append_input_history(res)
+                return res
 
             elif k == 'BACKSPACE':
                 if cursor_pos > 0:
