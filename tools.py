@@ -1,5 +1,8 @@
 import os
+import sys
 import subprocess
+import termios
+import tty
 from rich.prompt import Prompt
 from ui import console
 from memory import save_global_memory, save_project_memory
@@ -149,8 +152,162 @@ TOOLS_SCHEMA = [
                 "required": ["url"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "ask_user",
+            "description": "Menampilkan dialog pertanyaan interaktif dengan opsi pilihan (multiple choice) kepada pengguna menggunakan navigasi tombol panah (UP/DOWN/ENTER). Gunakan tool ini KAPAN SAJA Anda membutuhkan klarifikasi, pilihan arah desain, konfirmasi aturan antislop, atau keputusan dari pengguna daripada mengetik pertanyaan panjang di chat.",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "question": {
+                        "type": "string",
+                        "description": "Pertanyaan yang diajukan ke pengguna"
+                    },
+                    "options": {
+                        "type": "array",
+                        "items": {"type": "string"},
+                        "description": "Daftar opsi pilihan yang dapat dipilih pengguna"
+                    },
+                    "allow_custom": {
+                        "type": "boolean",
+                        "description": "Apakah mengizinkan input teks manual custom (default: true)"
+                    }
+                },
+                "required": ["question", "options"]
+            }
+        }
     }
 ]
+
+def interactive_ask_user(question, options, allow_custom=True):
+    if not sys.stdin.isatty():
+        from rich.prompt import Prompt
+        console.print(f"\n[bold cyan]❓ {question}[/bold cyan]")
+        for idx, opt in enumerate(options, 1):
+            console.print(f"  [bold yellow]{idx}[/bold yellow]. {opt}")
+        if allow_custom:
+            console.print("  [bold cyan]c[/bold cyan]. Ketik jawaban kustom")
+        ans = Prompt.ask("Pilih jawaban (nomor atau teks)", default="1").strip()
+        if ans.lower() == "c" and allow_custom:
+            return Prompt.ask("Ketik jawaban Anda").strip()
+        try:
+            num = int(ans) - 1
+            if 0 <= num < len(options):
+                return options[num]
+        except Exception:
+            pass
+        return ans
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+
+    all_options = list(options)
+    if allow_custom:
+        all_options.append("✏️  Ketik jawaban kustom manual...")
+
+    selected_idx = 0
+
+    try:
+        tty.setraw(fd)
+        sys.stdout.write("\033[?25l\033[?7l")  # Sembunyikan kursor & matikan wrap
+        sys.stdout.flush()
+
+        from slash_prompt import read_key_raw
+
+        last_rendered_lines = 0
+
+        while True:
+            try:
+                term_cols = os.get_terminal_size().columns
+            except Exception:
+                term_cols = 50
+
+            if last_rendered_lines > 0:
+                buf = []
+                for _ in range(last_rendered_lines):
+                    buf.append("\033[B\033[2K")
+                buf.append("\033[J")
+                buf.append(f"\033[{last_rendered_lines}A\r")
+                sys.stdout.write("".join(buf))
+                sys.stdout.flush()
+
+            lines = []
+            box_width = max(32, min(term_cols - 2, 65))
+            sep = "─" * max(2, box_width - 16)
+            lines.append(f"\033[1;36m╭─ ❓ Pertanyaan AI {sep}╮\033[0m")
+            for ql in question.splitlines():
+                if ql.strip():
+                    lines.append(f"\033[1;36m│\033[0m \033[1;37m{ql[:box_width-4]}\033[0m")
+            lines.append(f"\033[1;36m╰{'─' * max(2, box_width - 2)}╯\033[0m")
+
+            for idx, opt in enumerate(all_options):
+                is_sel = (idx == selected_idx)
+                opt_str = opt[:box_width - 6]
+                if is_sel:
+                    lines.append(f"  \033[1;32m▸\033[0m \033[7m\033[1;37m {opt_str} \033[0m")
+                else:
+                    lines.append(f"    \033[90m{opt_str}\033[0m")
+
+            lines.append("")
+            lines.append("\033[90m  [↑/↓: Navigasi  •  Enter: Pilih  •  ESC: Lewati]\033[0m")
+
+            output_buf = []
+            for idx_l, pl in enumerate(lines):
+                if idx_l == 0:
+                    output_buf.append(f"\r\033[2K{pl}")
+                else:
+                    output_buf.append(f"\r\n\033[2K{pl}")
+            
+            output_buf.append(f"\033[{len(lines) - 1}A\r")
+            sys.stdout.write("".join(output_buf))
+            sys.stdout.flush()
+            last_rendered_lines = len(lines)
+
+            k = read_key_raw(fd)
+
+            if k in ('UP', 'SHIFT_TAB'):
+                selected_idx = (selected_idx - 1) % len(all_options)
+            elif k in ('DOWN', 'TAB'):
+                selected_idx = (selected_idx + 1) % len(all_options)
+            elif k == 'ESC':
+                if last_rendered_lines > 0:
+                    buf = []
+                    for _ in range(last_rendered_lines):
+                        buf.append("\033[B\033[2K")
+                    buf.append("\033[J")
+                    buf.append(f"\033[{last_rendered_lines}A\r")
+                    sys.stdout.write("".join(buf))
+                    sys.stdout.flush()
+                return "Dilewati oleh pengguna."
+            elif k == 'ENTER':
+                chosen = all_options[selected_idx]
+                if last_rendered_lines > 0:
+                    buf = []
+                    for _ in range(last_rendered_lines):
+                        buf.append("\033[B\033[2K")
+                    buf.append("\033[J")
+                    buf.append(f"\033[{last_rendered_lines}A\r")
+                    sys.stdout.write("".join(buf))
+                    sys.stdout.flush()
+
+                if allow_custom and selected_idx == len(all_options) - 1:
+                    termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+                    sys.stdout.write("\033[?25h\033[?7h")
+                    sys.stdout.flush()
+                    from rich.prompt import Prompt
+                    custom_val = Prompt.ask("\n[bold cyan]Ketik jawaban kustom Anda[/bold cyan]").strip()
+                    console.print(f"[bold green]✔ Jawaban:[/bold green] [bold white]{custom_val}[/bold white]\n")
+                    return custom_val if custom_val else chosen
+
+                console.print(f"[bold green]✔ Opsi dipilih:[/bold green] [bold white]{chosen}[/bold white]\n")
+                return chosen
+
+    finally:
+        sys.stdout.write("\033[?7h\033[?25h")
+        sys.stdout.flush()
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 def get_bash_action_label(cmd):
     cmd_s = cmd.strip()
@@ -360,6 +517,12 @@ def execute_tool(name, args, auto_approve=False):
                     return f"=== PANDUAN SPESIALISASI SKILL '{s_name}' ===\n{content}"
             console.print(f"[bold red]✘ RTS > Failed: Skill '{s_name}' not found[/bold red]")
             return f"Skill '{s_name}' tidak ditemukan di folder skills rts."
+
+        elif name == "ask_user":
+            q = args.get("question", "Pilih salah satu opsi:")
+            opts = args.get("options", ["Ya", "Tidak"])
+            allow_c = args.get("allow_custom", True)
+            return interactive_ask_user(q, opts, allow_custom=allow_c)
 
     except Exception as e:
         return f"Error tool '{name}': {str(e)}"
