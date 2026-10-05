@@ -107,6 +107,20 @@ TOOLS_SCHEMA = [
                 "required": ["scope", "key", "value"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "load_skill",
+            "description": "Memuat instruksi dan panduan spesialisasi skill teknis (contoh: antislop, antislop-ui, antislop-code, systematic-debugging, test-driven-development, dll)",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "skill_name": {"type": "string", "description": "Nama skill yang ingin dimuat (misal: antislop, antislop-ui, systematic-debugging, test-driven-development)"}
+                },
+                "required": ["skill_name"]
+            }
+        }
     }
 ]
 
@@ -233,6 +247,21 @@ def execute_tool(name, args, auto_approve=False):
                 save_project_memory(key, val)
             console.print(f"[magenta]🧠 Memory [{scope}]: {key} = {val}[/magenta]")
             return f"Tersimpan di memory {scope}."
+
+        elif name == "load_skill":
+            s_name = args.get("skill_name", "").strip().lower()
+            skills_dirs = [
+                os.path.expanduser("~/.agents/skills"),
+                os.path.expanduser("~/.gemini/antigravity-cli/builtin/skills")
+            ]
+            for sdir in skills_dirs:
+                target_file = os.path.join(sdir, s_name, "SKILL.md")
+                if os.path.exists(target_file):
+                    with open(target_file, "r", encoding="utf-8", errors="ignore") as f:
+                        content = f.read()
+                    console.print(f"[bold cyan]⚡ Memuat Skill:[/bold cyan] [bold green]{s_name}[/bold green]")
+                    return f"=== PANDUAN SPESIALISASI SKILL '{s_name}' ===\n{content}"
+            return f"Skill '{s_name}' tidak ditemukan di ~/.agents/skills."
 
     except Exception as e:
         return f"Error tool '{name}': {str(e)}"

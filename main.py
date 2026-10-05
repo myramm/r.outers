@@ -115,6 +115,29 @@ def handle_model_menu(config):
         console.print(f"[bold red]❌ Input '{choice}' tidak valid! Ketik angka 1-{len(rec_models)}, 'c', 'p', 'l', atau 'e'.[/bold red]")
         return config
 
+def show_skills_table():
+    from client import get_available_skills_list
+    skills = get_available_skills_list()
+    if not skills:
+        console.print("[yellow]Belum ada skill yang terpasang di ~/.agents/skills.[/yellow]")
+        return
+    
+    table = Table(title=f"⚡ Daftar Skill Spesialisasi ({len(skills)} Terpasang)", header_style="bold cyan")
+    table.add_column("No", style="dim", width=4)
+    table.add_column("Nama Skill", style="bold yellow")
+    table.add_column("Kategori / Tipe", style="green")
+    
+    for idx, s in enumerate(skills, 1):
+        if s.startswith("antislop"):
+            cat = "Anti-Slop Standard"
+        elif s in ["test-driven-development", "systematic-debugging", "brainstorming", "writing-plans", "executing-plans", "using-superpowers", "verification-before-completion", "using-git-worktrees", "subagent-driven-development", "receiving-code-review", "requesting-code-review", "diagnosing-superpowers", "finishing-a-development-branch", "dispatching-parallel-agents", "writing-skills"]:
+            cat = "Superpowers Core"
+        else:
+            cat = "Specialist Skill"
+        table.add_row(str(idx), s, cat)
+    
+    console.print(table)
+
 def main():
     show_banner()
     full_cfg = load_full_config()
@@ -166,6 +189,9 @@ def main():
             elif cmd_lower in ["/list", "/models"]:
                 show_all_providers_and_models(config)
                 continue
+            elif cmd_lower in ["/skills", "/skill"]:
+                show_skills_table()
+                continue
             elif cmd_lower in ["/setup", "/config", "/pengaturan", "/settings"]:
                 auto_ref = [auto_approve]
                 config = show_settings_hub(config, auto_ref)
@@ -179,6 +205,7 @@ def main():
 • [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)
 • [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /m)
 • [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API (atau /p)
+• [bold cyan]/skills[/bold cyan]             : Tabel daftar skill spesialisasi terpasang
 • [bold cyan]/list[/bold cyan]               : Tabel daftar Provider & Model AI
 • [bold cyan]/memory[/bold cyan]             : Lihat memori agent
 • [bold cyan]/clear[/bold cyan]              : Bersihkan riwayat chat sesi ini

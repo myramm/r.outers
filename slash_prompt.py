@@ -9,6 +9,7 @@ SLASH_COMMANDS = [
     {"cmd": "/setup", "desc": "Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)"},
     {"cmd": "/model", "desc": "Pilih dan ganti model AI aktif (/m)"},
     {"cmd": "/provider", "desc": "Pindah atau tambah Provider API (/p)"},
+    {"cmd": "/skills", "desc": "Daftar skill spesialisasi terpasang (Anti-Slop, Superpowers, dll)"},
     {"cmd": "/memory", "desc": "Lihat dan kelola memori tersimpan"},
     {"cmd": "/list", "desc": "Tabel daftar Provider dan Model AI"},
     {"cmd": "/clear", "desc": "Bersihkan riwayat chat sesi ini"},

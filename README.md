@@ -81,6 +81,7 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 | `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell (Auto-Approve / Tanya y/n), Model, Provider, Reset |
 | `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard |
 | `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (Clouvia, Atria, Custom Provider) |
+| `/skills` | **Daftar Skill Terpasang**: Lihat 40+ spesialisasi (Anti-Slop, Superpowers, dll) |
 | `/list` | Tabel daftar lengkap semua Provider & Model yang tersedia |
 | `/memory` | Lihat dan kelola memori proyek yang tersimpan |
 | `/clear` | Bersihkan riwayat chat dan context sesi aktif |
@@ -108,6 +109,8 @@ rm -f ~/.routers_config.json ~/.routers_memory.json ~/.routers_project_memory.js
 
 ## ✨ Fitur Unggulan
 - **Full Autonomous Shell**: Eksekusi perintah bash (`pkg`, `npm`, `pip`, `git`, `python`, `node`, dll) disertai *Live Progress Loading Spinner*.
+- **Integrated Anti-Slop & Superpowers**: Didukung standar Anti-Slop (anti boilerplate/kode template murahan) dan Superpowers (TDD, Systematic Debugging, Pre-flight Verification).
+- **Dynamic Skill Loader (`/skills`)**: Otomatis mendeteksi dan memuat 40+ modul skill dari `~/.agents/skills/`.
 - **Smart Keyboard Navigation**: Dukungan tombol panah, Tab autocomplete, ESC cancel, dan shortcut cepat.
 - **Autonomous Code Editor**: Membaca, membuat, mencari, dan mengedit file secara presisi.
 - **Long-term Memory**: Mengingat preferensi Anda dan struktur proyek lintas sesi.

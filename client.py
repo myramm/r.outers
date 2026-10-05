@@ -57,9 +57,17 @@ class EscWatcher:
             except Exception:
                 pass
 
+def get_available_skills_list():
+    skills_dir = os.path.expanduser("~/.agents/skills")
+    if os.path.exists(skills_dir):
+        return sorted([d for d in os.listdir(skills_dir) if os.path.isdir(os.path.join(skills_dir, d))])
+    return []
+
 def build_system_prompt():
     memory = load_memory()
     cwd = os.getcwd()
+    skills = get_available_skills_list()
+    skills_summary = ", ".join(skills) if skills else "antislop, antislop-ui, antislop-code, systematic-debugging, test-driven-development"
     
     return f"""Anda adalah R.OUTERS AGENT, AI software engineer otonom di Android Linux Termux.
 
@@ -73,10 +81,17 @@ KEMAMPUAN:
 2. Membaca, membuat, mencari, dan mengedit file kode secara otonom.
 3. Menangani error secara otomatis (auto-healing).
 4. Menyimpan data penting ke memori (`remember`).
+5. Memuat panduan spesialisasi skill teknis (`load_skill`).
 
-ATURAN:
-- Buat file dengan kode lengkap dan siap jalan.
-- Install dependensi (npm/pip/pkg) otomatis jika belum ada.
+PRINSIP REKAYASA PERANGKAT LUNAK (SUPERPOWERS & ANTI-SLOP):
+- **Anti-Slop Standard**: Hasilkan kode dan antarmuka yang presisi, berkarakter, dan bersih. Hindari kode boilerplate yang membengkak atau teks AI generik.
+- **Systematic Debugging & TDD**: Lakukan investigasi akar masalah secara sistematis saat menemukan bug. Verifikasi fungsionalitas dengan pengujian nyata.
+- **Skill Terpasang**: {skills_summary}
+  *(Gunakan tool `load_skill` kapan saja Anda butuh instruksi detail mengenai skill tertentu seperti antislop-ui, antislop-code, systematic-debugging, test-driven-development, dll)*
+
+ATURAN UTAMA:
+- Buat file dengan kode lengkap dan siap jalan tanpa placeholder.
+- Pasang dependensi yang dibutuhkan secara otomatis.
 """
 
 def call_ai(messages, config):
