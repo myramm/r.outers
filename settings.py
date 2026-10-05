@@ -483,8 +483,8 @@ def handle_system_diagnostics(cfg, auto_approve_ref):
     table.add_row("Active Model", cfg.get("model", "N/A"))
     table.add_row("Base URL", cfg.get("base_url", "N/A"))
     table.add_row("API Key Configured", "Ya" if cfg.get("api_key") else "Tidak")
-    yolo = auto_approve_ref[0] if auto_approve_ref else False
-    table.add_row("YOLO Mode", "Aktif" if yolo else "Nonaktif")
+    is_auto = auto_approve_ref[0] if auto_approve_ref else False
+    table.add_row("Izin Shell (Auto-Approve)", "[bold green]Aktif (Selalu Izinkan)[/bold green]" if is_auto else "[yellow]Minta Izin (y/n)[/yellow]")
 
     console.print("\n")
     console.print(table)

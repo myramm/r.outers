@@ -125,11 +125,10 @@ def main():
 
     while True:
         try:
-            status_str = "\033[1;35m(YOLO)\033[0m " if auto_approve else ""
             prov_name = config.get('provider_id', 'ai')
             curr_model = config.get('model', 'model')
             model_str = f"\033[90m({prov_name}:{curr_model})\033[0m "
-            prompt_str = f"{status_str}{model_str}\033[1;36mr.outers >\033[0m"
+            prompt_str = f"{model_str}\033[1;36mr.outers >\033[0m"
             console.print("")
             user_input = get_smart_input(prompt_str)
         except (KeyboardInterrupt, EOFError):
@@ -151,14 +150,6 @@ def main():
                 os.system("clear")
                 show_banner()
                 console.print("[green]Chat history dibersihkan & context direfresh.[/green]")
-                continue
-            elif cmd_lower == "/yolo":
-                auto_approve = not auto_approve
-                cfg_current = load_full_config()
-                cfg_current["auto_approve"] = auto_approve
-                cfg_current["permission_mode"] = "always_allow" if auto_approve else "ask"
-                save_full_config(cfg_current)
-                console.print(f"[bold magenta]YOLO Mode (Auto-Approve): {auto_approve}[/bold magenta]")
                 continue
             elif cmd_lower in ["/model", "/m"]:
                 if len(parts) > 1 and parts[1].strip():
@@ -185,11 +176,10 @@ def main():
                 continue
             elif cmd_lower == "/help":
                 console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Model, Provider, Reset)
+• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)
 • [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /m)
 • [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API (atau /p)
 • [bold cyan]/list[/bold cyan]               : Tabel daftar Provider & Model AI
-• [bold cyan]/yolo[/bold cyan]               : Toggle Mode Auto-Pilot (tanpa konfirmasi manual y/n)
 • [bold cyan]/memory[/bold cyan]             : Lihat memori agent
 • [bold cyan]/clear[/bold cyan]              : Bersihkan riwayat chat sesi ini
 • [bold cyan]/exit[/bold cyan]               : Keluar

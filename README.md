@@ -78,14 +78,31 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Mode Auto-Approve, Model & Provider |
+| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell (Auto-Approve / Tanya y/n), Model, Provider, Reset |
 | `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard |
 | `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (Clouvia, Atria, Custom Provider) |
 | `/list` | Tabel daftar lengkap semua Provider & Model yang tersedia |
-| `/yolo` | Toggle **Autopilot Mode** (eksekusi shell otomatis tanpa konfirmasi y/n) |
 | `/memory` | Lihat dan kelola memori proyek yang tersimpan |
 | `/clear` | Bersihkan riwayat chat dan context sesi aktif |
 | `/exit` *(atau `/quit`)* | Keluar dari CLI secara bersih (*atau tekan `Ctrl + D`*) |
+
+---
+
+## 🗑️ Cara Menghapus / Uninstall `rts`
+
+Jika Anda ingin menghapus total `rts` beserta semua konfigurasinya dari Termux / Linux:
+
+```bash
+# 1. Hapus folder aplikasi
+rm -rf ~/r_outers
+
+# 2. Hapus shortcut eksekusi global
+rm -f /data/data/com.termux/files/usr/bin/rts /data/data/com.termux/files/usr/bin/r.outers /data/data/com.termux/files/usr/bin/routers 2>/dev/null
+sudo rm -f /usr/local/bin/rts /usr/local/bin/r.outers /usr/local/bin/routers 2>/dev/null
+
+# 3. Hapus file konfigurasi & memori lokal (opsional)
+rm -f ~/.routers_config.json ~/.routers_memory.json ~/.routers_project_memory.json
+```
 
 ---
 
