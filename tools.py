@@ -369,14 +369,14 @@ def execute_tool(name, args, auto_approve=False):
             cancelled = False
             
             try:
-                with console.status(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim](ESC: Stop)[/dim]") as status:
+                with console.status(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim](ESC: Stop | Ketik 'gas' untuk teruskan)[/dim]") as status:
                     while proc.poll() is None:
                         if watcher.stop_requested.is_set():
                             proc.kill()
                             cancelled = True
                             break
                         elapsed = time.time() - start_time
-                        status.update(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]")
+                        status.update(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]")
                         time.sleep(0.1)
 
                 if cancelled:

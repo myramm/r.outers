@@ -15,6 +15,10 @@ from styles import (
 )
 
 SLASH_COMMANDS = [
+    {"cmd": "/gas", "desc": "Lanjutkan & paksa agent teruskan task (Force Continue / Resume)"},
+    {"cmd": "/lanjut", "desc": "Lanjutkan proses atau tugas sebelumnya (/continue)"},
+    {"cmd": "/status", "desc": "Lihat status aktif agent, antrean task, dan model"},
+    {"cmd": "/stop", "desc": "Hentikan atau batalkan task yang sedang aktif (/cancel)"},
     {"cmd": "/setup", "desc": "Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)"},
     {"cmd": "/theme", "desc": "Pilih Color Scheme (terminal, light, dark, solarized, tokyo night)"},
     {"cmd": "/model", "desc": "Pilih dan ganti model AI aktif (/m)"},
@@ -255,7 +259,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K\r\n\033[2K\033[2A")
                 sys.stdout.flush()
                 return ""
 
@@ -264,7 +268,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \r\n\033[2K\r\n\033[2K\033[2A")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -329,8 +333,8 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
                 
-                # Output finalized clean block
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                # Finalize: leave clean top divider + user input line in history
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \033[1;37m{current_text}\033[0m\r\n\033[2K\r\n\033[2K\033[2A")
                 sys.stdout.flush()
                 
                 res = current_text.strip()

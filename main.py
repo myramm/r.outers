@@ -210,7 +210,7 @@ def main():
             _, cur_theme = get_current_style_settings()
             layout = render_prompt_layout("box", cur_theme, provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
             console.print("")
-            sys.stdout.write(f"\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \033[1;37m{user_input}\033[0m\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+            sys.stdout.write(f"\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \033[1;37m{user_input}\033[0m\r\n")
             sys.stdout.flush()
         else:
             try:
@@ -223,8 +223,33 @@ def main():
         if not user_input.strip():
             continue
 
+        cmd_raw = user_input.strip().lower()
+
+        # Force Continue / Resume Commands (gas, lanjut, continue)
+        if cmd_raw in ["gas", "lanjut", "continue", "/gas", "/lanjut", "/continue"]:
+            console.print("\n[bold yellow]⚡ RTS >[/bold yellow] [bold green]Continuing task / Resuming agent...[/bold green]\n")
+            user_input = "Lanjutkan task dan pekerjaan sebelumnya sampai tuntas. Jalankan semua tool yang diperlukan (menulis file, eksekusi bash, pengujian) tanpa berhenti sampai selesai."
+
+        # Status Command
+        elif cmd_raw in ["status", "/status"]:
+            from queue_manager import has_queued_messages
+            queue_status = "[bold green]1+ pesan antrean menunggu[/bold green]" if has_queued_messages() else "[dim]Kosong (Ready)[/dim]"
+            console.print(Panel(f"""[bold]Informasi Status RTS Agent:[/bold]
+• Model Aktif    : [bold yellow]{curr_model}[/bold yellow]
+• Provider API   : [bold cyan]{active_prov}[/bold cyan]
+• Mode Izin      : [{'green' if auto_approve else 'yellow'}]{'Always Allow (Auto)' if auto_approve else 'Ask Approval'}[/]
+• Antrean Pesan  : {queue_status}
+• Status Eksekusi: [bold green]Ready / Standby[/bold green]
+""", title="⚡ RTS Status"))
+            continue
+
+        # Stop / Cancel Command
+        elif cmd_raw in ["stop", "cancel", "batal", "/stop", "/cancel"]:
+            console.print("\n[bold yellow]⚡ RTS > Task stopped / reset.[/bold yellow]\n")
+            continue
+
         # Slash Commands
-        if user_input.startswith("/"):
+        elif user_input.startswith("/"):
             parts = user_input.strip().split(maxsplit=1)
             cmd_lower = parts[0].lower()
             
@@ -289,16 +314,18 @@ def main():
                 continue
             elif cmd_lower == "/help":
                 console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
-• [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]  : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)
-• [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /m)
-• [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API (atau /p)
-• [bold cyan]/skills[/bold cyan]             : Pusat Manajemen Skill (Lihat, Tambah dari GitHub, Hapus)
-• [bold cyan]/add-skill[/bold cyan] [url]     : Download & pasang skill langsung dari URL GitHub
-• [bold cyan]/list[/bold cyan]               : Tabel daftar Provider & Model AI
-• [bold cyan]/memory[/bold cyan]             : Lihat memori agent
-• [bold cyan]/clear[/bold cyan]              : Bersihkan riwayat chat sesi ini
-• [bold cyan]/exit[/bold cyan]               : Keluar
+• [bold yellow]gas[/bold yellow] [dim](atau /gas, lanjut)[/dim]   : Force Continue / Paksa AI melanjutkan task yang berjalan
+• [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif & antrean pesan
+• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim]   : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
+• [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]    : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)
+• [bold cyan]/model[/bold cyan] [nama]         : Pilih / ganti model AI (atau ketik /m)
+• [bold cyan]/provider[/bold cyan]             : Pindah / Tambah Provider API (atau /p)
+• [bold cyan]/skills[/bold cyan]               : Pusat Manajemen Skill (Lihat, Tambah dari GitHub, Hapus)
+• [bold cyan]/add-skill[/bold cyan] [url]       : Download & pasang skill langsung dari URL GitHub
+• [bold cyan]/list[/bold cyan]                 : Tabel daftar Provider & Model AI
+• [bold cyan]/memory[/bold cyan]               : Lihat memori agent
+• [bold cyan]/clear[/bold cyan]                : Bersihkan riwayat chat sesi ini
+• [bold cyan]/exit[/bold cyan]                 : Keluar
 """, title="Bantuan r.outers"))
                 continue
 
