@@ -209,18 +209,20 @@ def main():
             user_input = queued_msg
             _, cur_theme = get_current_style_settings()
             layout = render_prompt_layout("box", cur_theme, provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
-            console.print("")
-            sys.stdout.write(f"\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \033[1;37m{user_input}\033[0m\r\n")
+            prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
+            sys.stdout.write(f"\r\n\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\033[1;37m{user_input}\033[0m\r\n")
             sys.stdout.flush()
         else:
             try:
-                console.print("")
                 user_input = get_smart_input(provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve)
             except (KeyboardInterrupt, EOFError):
                 console.print("\n[yellow]Keluar...[/yellow]")
                 break
+            except Exception as e:
+                console.print(f"[bold red]Input Error:[/bold red] {e}")
+                continue
 
-        if not user_input.strip():
+        if not user_input or not user_input.strip():
             continue
 
         cmd_raw = user_input.strip().lower()
@@ -331,29 +333,45 @@ def main():
 
         messages.append({"role": "user", "content": user_input})
 
+        # Task Execution Lifecycle (RUNNING -> DONE / CANCELLED / ERROR -> IDLE)
         while True:
-            with console.status(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"):
-                reply = call_ai(messages, config)
+            reply = None
+            try:
+                with console.status(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"):
+                    reply = call_ai(messages, config)
+            except Exception as e:
+                console.print(f"[bold red]✘ Error calling AI:[/bold red] {e}")
+                break
 
             if not reply or reply.get("cancelled"):
                 break
 
-            msg = reply["choices"][0]["message"]
+            choices = reply.get("choices")
+            if not choices or not isinstance(choices, list) or len(choices) == 0:
+                break
+
+            msg = choices[0].get("message", {})
+            if not msg:
+                break
+
             messages.append(msg)
 
             if msg.get("tool_calls"):
                 for tool in msg["tool_calls"]:
-                    fn_name = tool["function"]["name"]
+                    fn_name = tool.get("function", {}).get("name", "")
                     try:
-                        fn_args = json.loads(tool["function"].get("arguments", "{}"))
+                        fn_args = json.loads(tool.get("function", {}).get("arguments", "{}"))
                     except Exception:
                         fn_args = {}
 
-                    tool_res = execute_tool(fn_name, fn_args, auto_approve=auto_approve)
+                    try:
+                        tool_res = execute_tool(fn_name, fn_args, auto_approve=auto_approve)
+                    except Exception as e:
+                        tool_res = f"Tool execution error: {e}"
                     
                     messages.append({
                         "role": "tool",
-                        "tool_call_id": tool["id"],
+                        "tool_call_id": tool.get("id", ""),
                         "name": fn_name,
                         "content": str(tool_res)
                     })

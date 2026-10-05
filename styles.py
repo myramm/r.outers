@@ -304,8 +304,13 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
     
     divider = f"{p['dim']}{'─' * safe_w}\033[0m"
     
+    # Prompt prefix: "r.outers > "
+    prefix_str = "r.outers > "
+    prefix_len = len(prefix_str)
+    prefix_rendered = f"{p['prompt_user']}r.outers\033[0m \033[90m>\033[0m "
+    
     # Safe input windowing so long text never causes accidental line wraps on zoom
-    max_input_w = max(10, safe_w - 4)
+    max_input_w = max(8, safe_w - prefix_len - 2)
     before = current_input[:cursor_col]
     after = current_input[cursor_col:]
     cursor_block = "\033[42m \033[0m"
@@ -325,8 +330,7 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
             disp_after = ""
             disp_cursor_col = len(disp_before)
 
-    # Input line with > prefix exactly like Antigravity
-    input_rendered = f"\033[90m>\033[0m {disp_before}{cursor_block}{disp_after}"
+    input_rendered = f"{prefix_rendered}{disp_before}{cursor_block}{disp_after}"
     
     # Dynamic status footer formatting that always fits within safe_w on exactly 1 line
     if safe_w >= 45:
@@ -343,9 +347,10 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
 
     return {
         "divider": divider,
+        "prefix_rendered": prefix_rendered,
         "input_rendered": input_rendered,
         "status_footer": status_footer,
-        "cursor_col": 2 + disp_cursor_col,
+        "cursor_col": prefix_len + disp_cursor_col,
         "div_width": safe_w
     }
 

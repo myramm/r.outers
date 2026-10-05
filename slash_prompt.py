@@ -172,6 +172,20 @@ def clear_popup_lines(count):
     sys.stdout.write("\033[3B\033[J\033[3A\r")
     sys.stdout.flush()
 
+def render_input(theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_pos=0, term_cols=80, is_first_render=False):
+    layout = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_input, cursor_col=cursor_pos, term_cols=term_cols)
+    cursor_col = layout.get("cursor_col", cursor_pos)
+    cursor_move = f"\033[{cursor_col}C" if cursor_col > 0 else ""
+    prefix_jump = "" if is_first_render else "\033[1A\r"
+
+    prompt_bundle = (
+        f"{prefix_jump}\033[2K{layout['divider']}\r\n"
+        f"\033[2K{layout['input_rendered']}\r\n"
+        f"\033[2K{layout['divider']}\r\n"
+        f"\033[2K{layout['status_footer']}"
+    )
+    return prompt_bundle, layout, cursor_move
+
 def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia", model_name="free-model", auto_approve=True):
     global _terminal_resized
     _terminal_resized = False
@@ -230,24 +244,17 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
 
-                layout = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_text, cursor_col=cursor_pos, term_cols=term_cols)
-                cursor_col = layout.get("cursor_col", cursor_pos)
-                cursor_move = f"\033[{cursor_col}C" if cursor_col > 0 else ""
-
-                prefix_jump = "" if is_first_render else "\033[1A\r"
-                is_first_render = False
-
-                # Complete 4-line Box Layout:
-                # Line 1: Top divider
-                # Line 2: Input line (cursor sits here)
-                # Line 3: Bottom divider
-                # Line 4: Status footer (always formatted to fit)
-                prompt_bundle = (
-                    f"{prefix_jump}\033[2K{layout['divider']}\r\n"
-                    f"\033[2K{layout['input_rendered']}\r\n"
-                    f"\033[2K{layout['divider']}\r\n"
-                    f"\033[2K{layout['status_footer']}"
+                prompt_bundle, layout, cursor_move = render_input(
+                    theme_id=theme_id,
+                    provider_name=provider_name,
+                    model_name=model_name,
+                    auto_approve=auto_approve,
+                    current_input=current_text,
+                    cursor_pos=cursor_pos,
+                    term_cols=term_cols,
+                    is_first_render=is_first_render
                 )
+                is_first_render = False
 
                 if current_text.startswith("/"):
                     q = current_text.strip().lower()
@@ -291,7 +298,8 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K\r\n\033[2K\033[1A\r")
+                prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}{current_text}\r\n\033[2K\r\n\033[2K\033[1A\r")
                 sys.stdout.flush()
                 return ""
 
@@ -300,7 +308,8 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \r\n\033[2K\r\n\033[2K\033[1A\r")
+                    prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
+                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\r\n\033[2K\r\n\033[2K\033[1A\r")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -366,7 +375,8 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     last_popup_lines_count = 0
                 
                 # Finalize: leave clean top divider + user input line in history
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \033[1;37m{current_text}\033[0m\r\n\033[2K\r\n\033[2K\033[1A\r")
+                prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\033[1;37m{current_text}\033[0m\r\n\033[2K\r\n\033[2K\033[1A\r")
                 sys.stdout.flush()
                 
                 res = current_text.strip()
