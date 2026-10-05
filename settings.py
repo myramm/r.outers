@@ -152,7 +152,7 @@ def show_settings_hub(current_config, auto_approve_ref=None):
             {"id": "api_key", "label": "🔑 Kelola API Key", "status": f"{active_prov}: {key_status}"},
             {"id": "provider", "label": "📡 Ganti / Tambah Provider", "status": f"[{active_prov}]"},
             {"id": "model", "label": "🤖 Pilih Model AI", "status": f"[{curr_model}]"},
-            {"id": "style", "label": "🎨 Style & Tema Terminal", "status": f"[{cur_style} / {cur_theme}]"},
+            {"id": "style", "label": "🎨 Color Scheme & Style", "status": f"[{cur_theme}]"},
             {"id": "skills", "label": "⚡ Kelola & Tambah Skill", "status": f"[{total_skills} Skill]"},
             {"id": "permission", "label": "🛡️ Izin Eksekusi Shell", "status": perm_status},
             {"id": "memory", "label": "🧠 Kelola Memori Agent", "status": "[Global/Proyek]"},
