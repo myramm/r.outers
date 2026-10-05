@@ -12,6 +12,10 @@ from tools import execute_tool
 from client import build_system_prompt, call_ai
 
 POPULAR_MODELS = {
+    "clouvia": [
+        "free-model",
+        "coding-high"
+    ],
     "openrouter": [
         "deepseek/deepseek-chat",
         "deepseek/deepseek-r1",
@@ -40,21 +44,21 @@ POPULAR_MODELS = {
 }
 
 def handle_model_menu(config):
-    prov_id = config.get("provider_id", "openrouter")
+    prov_id = config.get("provider_id", "clouvia")
     rec_models = POPULAR_MODELS.get(prov_id, [
+        "free-model",
+        "coding-high",
         "deepseek/deepseek-chat",
-        "deepseek/deepseek-r1",
-        "openai/gpt-4o",
-        "anthropic/claude-3.5-sonnet"
+        "openai/gpt-4o"
     ])
 
     lines = [f"[bold cyan]Provider Aktif:[/bold cyan] [bold green]{config.get('provider_name')}[/bold green]"]
     lines.append(f"[bold]Model Saat Ini:[/bold] [bold yellow]{config.get('model')}[/bold yellow]\n")
-    lines.append("[bold]Pilihan Cepat:[/bold]")
+    lines.append("[bold]Pilihan Model Cepat:[/bold]")
     for idx, m in enumerate(rec_models, 1):
         lines.append(f"  [bold yellow]{idx}[/bold yellow]. {m}")
     lines.append("  [bold cyan]c[/bold cyan]. Ketik nama model custom manual")
-    lines.append("  [bold magenta]p[/bold magenta]. Ganti / Tambah Provider Baru")
+    lines.append("  [bold magenta]p[/bold magenta]. Ganti / Tambah Provider")
 
     console.print(Panel("\n".join(lines), title="🤖 Pengaturan Model & Provider"))
 
@@ -76,7 +80,7 @@ def handle_model_menu(config):
     if new_m.strip():
         update_active_model(new_m.strip())
         config["model"] = new_m.strip()
-        console.print(f"[bold green]✔ Model aktif berhasil diubah ke:[/bold green] [bold yellow]{new_m.strip()}[/bold yellow]")
+        console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m.strip()}[/bold yellow]")
     return config
 
 def main():
@@ -134,8 +138,8 @@ def main():
                 continue
             elif cmd_lower == "/help":
                 console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik langsung /model gpt-4o)
-• [bold cyan]/provider[/bold cyan]           : Ganti / Tambah API Provider (OpenRouter, Groq, DeepSeek, Ollama, dll)
+• [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau /model coding-high)
+• [bold cyan]/provider[/bold cyan]           : Ganti / Tambah Provider (Clouvia, OpenRouter, Groq, DeepSeek, dll)
 • [bold cyan]/yolo[/bold cyan]               : Toggle Mode Auto-Pilot (tanpa konfirmasi manual y/n)
 • [bold cyan]/memory[/bold cyan]             : Lihat memori yang tersimpan
 • [bold cyan]/clear[/bold cyan]              : Bersihkan riwayat chat sesi ini

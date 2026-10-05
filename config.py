@@ -4,8 +4,14 @@ from rich.prompt import Prompt, Confirm
 from ui import console
 
 CONFIG_FILE = os.path.expanduser("~/.routers_config.json")
+ENV_FILE = os.path.expanduser("~/.env")
 
 PRESET_PROVIDERS = {
+    "clouvia": {
+        "name": "Clouvia Router (coding-high, free-model)",
+        "base_url": "https://router.clouvia.id/v1",
+        "default_model": "free-model"
+    },
     "openrouter": {
         "name": "OpenRouter (DeepSeek V3/R1, Claude, GPT, Gemini)",
         "base_url": "https://openrouter.ai/api/v1",
@@ -38,12 +44,27 @@ PRESET_PROVIDERS = {
     }
 }
 
+def load_env_keys():
+    keys = {}
+    paths = [".env", ENV_FILE]
+    for p in paths:
+        if os.path.exists(p):
+            try:
+                with open(p, "r") as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith("#") and "=" in line:
+                            k, v = line.split("=", 1)
+                            keys[k.strip()] = v.strip().strip("'\"")
+            except Exception:
+                pass
+    return keys
+
 def load_full_config():
     if os.path.exists(CONFIG_FILE):
         try:
             with open(CONFIG_FILE, "r") as f:
                 data = json.load(f)
-                # Migrasi struktur lama jika ada
                 if "base_url" in data and "providers" not in data:
                     migrated = {
                         "active_provider": "custom_default",
@@ -69,7 +90,7 @@ def save_full_config(config_data):
 
 def get_active_config():
     full_cfg = load_full_config()
-    active_key = full_cfg.get("active_provider", "openrouter")
+    active_key = full_cfg.get("active_provider", "clouvia")
     providers = full_cfg.get("providers", {})
     
     if active_key not in providers:
@@ -78,15 +99,31 @@ def get_active_config():
             full_cfg["active_provider"] = active_key
             save_full_config(full_cfg)
         else:
-            return setup_initial_config()["providers"]["openrouter"]
+            return setup_initial_config()["providers"]["clouvia"]
 
     curr = providers[active_key]
+    
+    # Auto-inject from env jika kosong
+    env_keys = load_env_keys()
+    api_k = curr.get("api_key", "")
+    if not api_k:
+        if active_key == "clouvia":
+            api_k = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", ""))
+        elif active_key == "openrouter":
+            api_k = env_keys.get("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", ""))
+        elif active_key == "deepseek":
+            api_k = env_keys.get("DEEPSEEK_API_KEY", os.environ.get("DEEPSEEK_API_KEY", ""))
+        elif active_key == "groq":
+            api_k = env_keys.get("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", ""))
+        elif active_key == "openai":
+            api_k = env_keys.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
+
     return {
         "provider_id": active_key,
         "provider_name": curr.get("name", active_key),
         "base_url": curr.get("base_url", ""),
-        "api_key": curr.get("api_key", ""),
-        "model": curr.get("model", "deepseek-chat")
+        "api_key": api_k,
+        "model": curr.get("model", "free-model")
     }
 
 def update_active_model(new_model):
@@ -99,8 +136,8 @@ def update_active_model(new_model):
     return False
 
 def add_new_provider():
-    console.print("\n[bold cyan]➕ Tambah Provider Baru[/bold cyan]")
-    console.print("Pilih Preset atau Custom:")
+    console.print("\n[bold cyan]➕ Tambah / Pilih Provider[/bold cyan]")
+    console.print("Pilih Provider:")
     keys = list(PRESET_PROVIDERS.keys())
     for idx, k in enumerate(keys, 1):
         p = PRESET_PROVIDERS[k]
@@ -160,7 +197,7 @@ def switch_provider():
         p = providers[k]
         is_active = " [bold green](AKTIF)[/bold green]" if k == active_key else ""
         console.print(f"  [bold yellow]{idx}[/bold yellow]. {p.get('name', k)} ({p.get('model')}){is_active}")
-    console.print(f"  [bold cyan]+[/bold cyan]. Tambah Provider Baru")
+    console.print(f"  [bold cyan]+[/bold cyan]. Tambah / Setup Provider Baru")
 
     sel = Prompt.ask("\nPilih nomor provider untuk diaktifkan atau '+' untuk tambah", default="1")
     if sel.strip() == "+":
