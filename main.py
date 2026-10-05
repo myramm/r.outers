@@ -210,7 +210,7 @@ def main():
             _, cur_theme = get_current_style_settings()
             layout = render_prompt_layout("box", cur_theme, provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
             console.print("")
-            sys.stdout.write(f"\r\033[2K{layout['divider']}\r\n\033[2K\033[1;37m{user_input}\033[0m\r\n\033[2K{layout['divider']}\r\n\033[2K\r\n\033[2K{layout['status_footer']}\r\n")
+            sys.stdout.write(f"\r\033[2K{layout['divider']}\r\n\033[2K\033[1;37m{user_input}\033[0m\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
             sys.stdout.flush()
         else:
             try:
