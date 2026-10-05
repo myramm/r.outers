@@ -1,4 +1,5 @@
 import os
+import sys
 import json
 from rich.prompt import Prompt
 from ui import console

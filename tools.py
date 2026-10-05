@@ -251,6 +251,7 @@ def execute_tool(name, args, auto_approve=False):
         elif name == "load_skill":
             s_name = args.get("skill_name", "").strip().lower()
             skills_dirs = [
+                os.path.join(os.path.dirname(__file__), "skills"),
                 os.path.expanduser("~/.agents/skills"),
                 os.path.expanduser("~/.gemini/antigravity-cli/builtin/skills")
             ]
@@ -261,7 +262,7 @@ def execute_tool(name, args, auto_approve=False):
                         content = f.read()
                     console.print(f"[bold cyan]⚡ Memuat Skill:[/bold cyan] [bold green]{s_name}[/bold green]")
                     return f"=== PANDUAN SPESIALISASI SKILL '{s_name}' ===\n{content}"
-            return f"Skill '{s_name}' tidak ditemukan di ~/.agents/skills."
+            return f"Skill '{s_name}' tidak ditemukan di folder skills rts."
 
     except Exception as e:
         return f"Error tool '{name}': {str(e)}"

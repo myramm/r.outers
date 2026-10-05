@@ -58,10 +58,18 @@ class EscWatcher:
                 pass
 
 def get_available_skills_list():
-    skills_dir = os.path.expanduser("~/.agents/skills")
-    if os.path.exists(skills_dir):
-        return sorted([d for d in os.listdir(skills_dir) if os.path.isdir(os.path.join(skills_dir, d))])
-    return []
+    found = set()
+    dirs = [
+        os.path.join(os.path.dirname(__file__), "skills"),
+        os.path.expanduser("~/.agents/skills"),
+        os.path.expanduser("~/.gemini/antigravity-cli/builtin/skills")
+    ]
+    for sdir in dirs:
+        if os.path.exists(sdir):
+            for d in os.listdir(sdir):
+                if os.path.isdir(os.path.join(sdir, d)) and os.path.exists(os.path.join(sdir, d, "SKILL.md")):
+                    found.add(d)
+    return sorted(list(found))
 
 def build_system_prompt():
     memory = load_memory()
