@@ -2,32 +2,26 @@
 
 Autonomous AI Coding Agent designed for Termux Android Linux environment.
 
-## 🚀 Features
-- **Full Shell Execution**: Run bash commands (`pkg`, `npm`, `pip`, `git`, `python`, `node`, etc.)
-- **Autonomous File Manipulation**: Read, write, and patch code automatically.
-- **Long-term Memory**: Persists user preferences and project context across sessions.
-- **Auto-Healing**: Catches execution errors, inspects logs, and self-repairs code.
-- **YOLO Mode (`/yolo`)**: Auto-pilot mode without manual confirmations.
+## 🚀 One-Line Instant Install (via curl)
 
-## 📦 Installation in Termux
+Jalankan perintah ini langsung di Termux:
 
 ```bash
-pkg update && pkg install python git -y
-pip install requests rich
-
-git clone https://github.com/myramm/r.outers.git ~/r_outers
-cd ~/r_outers
-
-cat << 'SCRIPT' > $PREFIX/bin/r.outers
-#!/bin/bash
-python ~/r_outers/main.py "$@"
-SCRIPT
-chmod +x $PREFIX/bin/r.outers
-ln -sf $PREFIX/bin/r.outers $PREFIX/bin/rts
+curl -sSL https://raw.githubusercontent.com/myramm/r.outers/main/install.sh | bash
 ```
 
 ## 🎮 Usage
-Cukup jalankan:
+
+Setelah terinstall, cukup ketik:
+
 ```bash
 rts
 ```
+*(atau bisa juga `r.outers` / `routers`)*
+
+## ✨ Fitur Lengkap
+- **Full Shell Execution**: Eksekusi perintah bash (`pkg`, `npm`, `pip`, `git`, `python`, `node`, dll).
+- **Autonomous Code Editor**: Membaca, membuat, mencari, dan mengedit file secara otomatis.
+- **Long-term Memory**: Mengingat preferensi Anda dan konteks proyek lintas sesi.
+- **Auto-Healing**: Menangkap error instalasi / script crash dan memperbaikinya sendiri.
+- **YOLO Mode (`/yolo`)**: Mode autopilot tanpa konfirmasi manual.
