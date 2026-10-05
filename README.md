@@ -1,6 +1,6 @@
 # ⚡ r.outers (CLI AI Coding Agent for Termux & Linux)
 
-Autonomous AI Coding Agent designed for Android Termux and Linux environments.
+Autonomous AI Coding Agent bertenaga tinggi yang didesain khusus untuk lingkungan **Android Termux** dan **Linux**. Mendukung eksekusi shell otonom, integrasi multi-provider (Clouvia, Atria, NVIDIA NIM 80+ model), pemilihan model interaktif, dan ekosistem *Skill Manager* (Anti-Slop & Superpowers).
 
 ---
 
@@ -13,7 +13,7 @@ Jalankan perintah ini langsung di terminal Anda:
 curl -fsSL https://raw.githubusercontent.com/myramm/r.outers/main/install.sh | bash
 ```
 
-> **💡 Tips untuk Pengguna Termux (Jika baru update Python / Error expat):**
+> **💡 Tips untuk Pengguna Termux (Jika baru update Python / Error libexpat):**
 > Pastikan library sistem sudah ter-update terlebih dahulu:
 > ```bash
 > pkg update -y && pkg install -y libexpat python-pip git curl
@@ -46,13 +46,60 @@ rts
 
 ---
 
-## 🔑 Pengaturan & Cara Menghapus API Key
+## 📋 Daftar Perintah Slash (Slash Commands)
+
+Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
+
+| Perintah | Deskripsi |
+| :--- | :--- |
+| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell, Kelola Skill, Model, Provider, Reset Total |
+| `/skills` | **Pusat Manajemen Skill**: Menu interaktif untuk lihat daftar, tambah dari GitHub, atau hapus skill |
+| `/add-skill` *[url]* | **Pasang Skill Baru**: Unduh dan pasang skill langsung dari URL repository GitHub |
+| `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard yang responsif |
+| `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (Clouvia, Atria, NVIDIA NIM, Custom) |
+| `/list` | Tabel daftar lengkap semua Provider & Model yang tersedia |
+| `/memory` | Lihat dan kelola memori proyek yang tersimpan |
+| `/clear` | Bersihkan riwayat percakapan sesi ini dan refresh konteks AI |
+| `/exit` *(atau `/quit`)* | Keluar dari CLI secara bersih (*atau tekan `Ctrl + D`*) |
+
+---
+
+## ⚡ Cara Menambah Skill Baru ke `rts`
+
+`rts` mendukung ekstensi modul keahlian (*skills*) yang berisi instruksi spesialisasi (seperti standar Anti-Slop, TDD, Systematic Debugging, UI/UX, dll).
+
+### Metode 1: Perintah Langsung CLI
+Ketik `/add-skill` diikuti link repository GitHub:
+```text
+r.outers > /add-skill https://github.com/miqdadbadjuber/anti-slop
+```
+atau:
+```text
+r.outers > /add-skill https://github.com/obra/superpowers
+```
+
+### Metode 2: Menu Interaktif `/skills`
+1. Buka CLI dengan `rts`
+2. Ketik `/skills`
+3. Pilih opsi **➕ Tambah Skill Baru (dari URL GitHub)**
+4. Tempel (*paste*) URL repository GitHub skill yang Anda inginkan.
+
+### Metode 3: Pemasangan Manual (Folder)
+Anda juga dapat meletakkan folder skill (yang berisi file `SKILL.md`) secara langsung ke salah satu direktori berikut:
+- Direktori lokal: `~/r_outers/skills/<nama-skill>/SKILL.md`
+- Direktori global: `~/.agents/skills/<nama-skill>/SKILL.md`
+
+> Semua skill yang terpasang akan otomatis dideteksi dan dapat dipanggil oleh AI secara mandiri saat dibutuhkan!
+
+---
+
+## 🔑 Pengaturan & Cara Kelola API Key
 
 ### A. Melalui Menu Interaktif CLI
 1. Buka CLI dengan perintah `rts`
 2. Ketik `/setup` (atau `/config`)
 3. Pilih **🔑 Kelola API Key**
-4. Masukkan API Key baru Anda atau kosongkan untuk menghapusnya.
+4. Pilih provider yang ingin diubah lalu tempel (*paste*) API Key baru.
 
 ### B. Melalui File Konfigurasi (Manual)
 Konfigurasi API Key tersimpan secara lokal di file `~/.routers_config.json`.
@@ -61,73 +108,60 @@ Untuk mengedit atau menghapus API key secara manual:
 ```bash
 nano ~/.routers_config.json
 ```
-Cari bagian `"api_key": "..."` dan ubah menjadi `"api_key": ""`.
 
 ### C. Melalui File `.env` / Environment Variable
 Anda juga dapat memasukkan API Key di file `~/.env`:
 ```env
 CLOUVIA_API_KEY=your_clouvia_api_key_here
 ATRIA_API_KEY=your_atria_api_key_here
+NVIDIA_API_KEY=nvapi-your_nvidia_api_key_here
 ```
-
----
-
-## 📋 Daftar Perintah Slash (Slash Commands)
-
-Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
-
-| Perintah | Deskripsi |
-| :--- | :--- |
-| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell, Kelola Skill, Model, Provider, Reset |
-| `/skills` | **Pusat Manajemen Skill**: Menu interaktif untuk lihat, pasang dari URL GitHub, atau hapus skill |
-| `/add-skill` *[url]* | **Pasang Skill Baru**: Unduh dan pasang skill langsung dari URL repository GitHub |
-| `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard |
-| `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (Clouvia, Atria, NVIDIA NIM, Custom) |
-| `/list` | Tabel daftar lengkap semua Provider & Model yang tersedia |
-| `/memory` | Lihat dan kelola memori proyek yang tersimpan |
-| `/clear` | Bersihkan riwayat chat dan context sesi aktif |
-| `/exit` *(atau `/quit`)* | Keluar dari CLI secara bersih (*atau tekan `Ctrl + D`*) |
-
----
-
-## ⚡ Cara Menambah Skill Baru ke `rts`
-
-Anda dapat memasang skill baru (misalnya dari GitHub) dengan mudah:
-
-```bash
-# Melalui perintah langsung di dalam rts CLI:
-/add-skill https://github.com/owner/nama-skill
-
-# Atau buka menu interaktif:
-/skills
-```
-> Skill yang dipasang akan otomatis tersimpan di folder `skills/` dan langsung dikenali oleh AI!
 
 ---
 
 ## 🗑️ Cara Menghapus / Uninstall `rts`
 
-Jika Anda ingin menghapus total `rts` beserta semua konfigurasinya dari Termux / Linux:
+Jika Anda ingin menghapus `rts` dari Termux atau Linux, tersedia beberapa cara:
+
+### Cara 1: One-Line Uninstall Command (Paling Praktis)
+Jalankan satu baris perintah ini di terminal:
 
 ```bash
-# 1. Hapus folder aplikasi
+curl -fsSL https://raw.githubusercontent.com/myramm/r.outers/main/uninstall.sh | bash
+```
+
+---
+
+### Cara 2: Menghapus Secara Manual via Terminal
+Jalankan baris perintah berikut untuk menghapus folder program, shortcut global, dan file konfigurasinya:
+
+```bash
+# 1. Hapus folder program r.outers
 rm -rf ~/r_outers
 
-# 2. Hapus shortcut eksekusi global
+# 2. Hapus shortcut eksekusi global di Termux / Linux
 rm -f /data/data/com.termux/files/usr/bin/rts /data/data/com.termux/files/usr/bin/r.outers /data/data/com.termux/files/usr/bin/routers 2>/dev/null
 sudo rm -f /usr/local/bin/rts /usr/local/bin/r.outers /usr/local/bin/routers 2>/dev/null
 
-# 3. Hapus file konfigurasi & memori lokal (opsional)
+# 3. Hapus cache konfigurasi & memori lokal
 rm -f ~/.routers_config.json ~/.routers_memory.json ~/.routers_project_memory.json
 ```
 
 ---
 
+### Cara 3: Dari Dalam CLI (`/setup`)
+1. Jalankan `rts`
+2. Ketik `/setup`
+3. Pilih **🗑️ Reset Total & Hapus Instalasi**
+
+---
+
 ## ✨ Fitur Unggulan
-- **Full Autonomous Shell**: Eksekusi perintah bash (`pkg`, `npm`, `pip`, `git`, `python`, `node`, dll) disertai *Live Progress Loading Spinner*.
-- **Integrated Anti-Slop & Superpowers**: Didukung standar Anti-Slop (anti boilerplate/kode template murahan) dan Superpowers (TDD, Systematic Debugging, Pre-flight Verification).
-- **Dynamic Skill Loader (`/skills`)**: Otomatis mendeteksi dan memuat 40+ modul skill dari `~/.agents/skills/`.
-- **Smart Keyboard Navigation**: Dukungan tombol panah, Tab autocomplete, ESC cancel, dan shortcut cepat.
+- **Full Autonomous Shell**: Eksekusi perintah bash (`pkg`, `npm`, `pip`, `git`, `python`, `node`, dll) disertai *Live Progress Loading Spinner* & pembatalan cepat (<kbd>ESC</kbd>).
+- **Integrated Anti-Slop & Superpowers**: Didukung standar Anti-Slop (anti kode template murahan) dan Superpowers (TDD, Systematic Debugging, Pre-flight Verification).
+- **Dynamic Skill Loader (`/skills` & `/add-skill`)**: Otomatis mendeteksi dan mengunduh modul skill dari GitHub langsung ke perangkat.
+- **Support 80+ Model NVIDIA NIM, Clouvia & Atria**: Akses model unggulan seperti Nemotron 120B/340B, GPT-OSS 20B, DeepSeek, GLM, dll.
+- **Smart Keyboard Navigation**: Dukungan tombol panah, Tab autocomplete, ESC cancel, pencarian filter cepat, dan input sensitif yang nyaman di HP.
 - **Autonomous Code Editor**: Membaca, membuat, mencari, dan mengedit file secara presisi.
 - **Long-term Memory**: Mengingat preferensi Anda dan struktur proyek lintas sesi.
 - **Auto-Healing**: Mendeteksi error eksekusi dan memperbaikinya secara otonom.
