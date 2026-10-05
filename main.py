@@ -210,7 +210,7 @@ def main():
             _, cur_theme = get_current_style_settings()
             layout = render_prompt_layout("box", cur_theme, provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
             prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
-            sys.stdout.write(f"\r\n\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\033[1;37m{user_input}\033[0m\r\n")
+            sys.stdout.write(f"\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\033[1;37m{user_input}\033[0m\r\n")
             sys.stdout.flush()
         else:
             try:

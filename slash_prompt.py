@@ -10,6 +10,7 @@ from ui import console
 from styles import (
     get_current_style_settings,
     render_prompt_layout,
+    render_input_area,
     get_terminal_width,
     get_safe_width,
     truncate_text,
@@ -173,18 +174,7 @@ def clear_popup_lines(count):
     sys.stdout.flush()
 
 def render_input(theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_pos=0, term_cols=80, is_first_render=False):
-    layout = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_input, cursor_col=cursor_pos, term_cols=term_cols)
-    cursor_col = layout.get("cursor_col", cursor_pos)
-    cursor_move = f"\033[{cursor_col}C" if cursor_col > 0 else ""
-    prefix_jump = "" if is_first_render else "\033[1A\r"
-
-    prompt_bundle = (
-        f"{prefix_jump}\033[2K{layout['divider']}\r\n"
-        f"\033[2K{layout['input_rendered']}\r\n"
-        f"\033[2K{layout['divider']}\r\n"
-        f"\033[2K{layout['status_footer']}"
-    )
-    return prompt_bundle, layout, cursor_move
+    return render_input_area("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_input, cursor_col=cursor_pos, term_cols=term_cols, is_first_render=is_first_render)
 
 def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia", model_name="free-model", auto_approve=True):
     global _terminal_resized

@@ -354,6 +354,27 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
         "div_width": safe_w
     }
 
+def render_input_area(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_col=0, term_cols=None, is_first_render=False):
+    """
+    Dedicated single renderer for the complete 4-line Antigravity input box:
+    Line 1: Top divider
+    Line 2: r.outers > typed_text █
+    Line 3: Bottom divider
+    Line 4: ⚡ Nemotron 3 Super 120B · Auto · Ready
+    """
+    layout = render_prompt_layout(style_id, theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_input, cursor_col=cursor_col, term_cols=term_cols)
+    cursor_x = layout.get("cursor_col", cursor_col)
+    cursor_move = f"\033[{cursor_x}C" if cursor_x > 0 else ""
+    prefix_jump = "" if is_first_render else "\033[1A\r"
+
+    prompt_bundle = (
+        f"{prefix_jump}\033[2K{layout['divider']}\r\n"
+        f"\033[2K{layout['input_rendered']}\r\n"
+        f"\033[2K{layout['divider']}\r\n"
+        f"\033[2K{layout['status_footer']}"
+    )
+    return prompt_bundle, layout, cursor_move
+
 def render_split_preview_lines(scheme, width=40):
     p = scheme["palette"]
     

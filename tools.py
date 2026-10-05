@@ -373,18 +373,18 @@ def execute_tool(name, args, auto_approve=False):
             cancelled = False
             
             try:
-                with console.status(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim](ESC: Stop | Ketik 'gas' untuk teruskan)[/dim]") as status:
+                with console.status(f"[bold cyan]↳ Running...[/bold cyan] [dim](0.0s | ESC: Stop | Ketik 'gas')[/dim]") as status:
                     while proc.poll() is None:
                         if watcher.stop_requested.is_set():
                             proc.kill()
                             cancelled = True
                             break
                         elapsed = time.time() - start_time
-                        status.update(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]")
+                        status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]")
                         time.sleep(0.1)
 
                 if cancelled:
-                    console.print("\n[bold yellow]⏹ RTS > Cancelled by user (ESC).[/bold yellow]")
+                    console.print("[bold yellow]⏹ RTS > Cancelled by user (ESC).[/bold yellow]\n")
                     return "Eksekusi command dibatalkan oleh pengguna (ESC)."
 
                 stdout, stderr = proc.communicate()
@@ -402,7 +402,7 @@ def execute_tool(name, args, auto_approve=False):
                     console.print(f"  [dim red]{line}[/dim red]")
 
             if proc.returncode == 0:
-                console.print(f"[bold green]✔ RTS > Completed[/bold green] [dim]({elapsed:.1f}s)[/dim]\n")
+                console.print(f"[bold green]✓ RTS > Completed[/bold green] [dim]({elapsed:.1f}s)[/dim]\n")
             else:
                 console.print(f"[bold red]✘ RTS > Failed (Exit code: {proc.returncode})[/bold red] [dim]({elapsed:.1f}s)[/dim]\n")
 
