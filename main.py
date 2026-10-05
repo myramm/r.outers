@@ -7,7 +7,10 @@ from rich.panel import Panel
 from rich.table import Table
 
 from ui import console, show_banner, print_markdown
-from config import get_active_config, update_active_model, switch_provider, add_new_provider, load_full_config, PRESET_PROVIDERS
+from config import (
+    get_active_config, update_active_model, switch_provider,
+    add_new_provider, load_full_config, save_full_config, PRESET_PROVIDERS
+)
 from memory import load_memory
 from tools import execute_tool
 from client import build_system_prompt, call_ai
