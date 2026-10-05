@@ -255,7 +255,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
                 sys.stdout.flush()
                 return ""
 
@@ -264,7 +264,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -330,7 +330,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     last_popup_lines_count = 0
                 
                 # Output finalized clean block
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
                 sys.stdout.flush()
                 
                 res = current_text.strip()
