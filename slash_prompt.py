@@ -115,6 +115,12 @@ def render_slash_autocomplete(query, matches, selected_idx, width, max_items=5):
 
     return lines
 
+import re
+
+def get_visible_len(s):
+    ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+    return len(ansi_escape.sub('', s))
+
 def clear_popup_lines(count):
     if count <= 0:
         return
@@ -126,9 +132,11 @@ def clear_popup_lines(count):
     sys.stdout.write("".join(buf))
     sys.stdout.flush()
 
-def get_smart_input(prompt_display_str):
+def get_smart_input(prompt_display_str, sub_info=""):
     if not sys.stdin.isatty():
         from rich.prompt import Prompt
+        if sub_info:
+            console.print(f"\033[90m{sub_info}\033[0m")
         return Prompt.ask(prompt_display_str)
 
     fd = sys.stdin.fileno()
@@ -138,6 +146,7 @@ def get_smart_input(prompt_display_str):
     cursor_pos = 0
     selected_idx = 0
     last_popup_lines_count = 0
+    prompt_vlen = get_visible_len(prompt_display_str)
 
     try:
         tty.setraw(fd)
@@ -157,8 +166,13 @@ def get_smart_input(prompt_display_str):
             cursor_block = "\033[42m \033[0m"
             before = current_text[:cursor_pos]
             after = current_text[cursor_pos:]
+            cursor_col = prompt_vlen + 1 + len(before)
             
-            prompt_line = f"\r\033[2K{prompt_display_str} {before}{cursor_block}{after}"
+            if sub_info:
+                prompt_line = f"\r\033[2K{prompt_display_str} {before}{cursor_block}{after}\r\n\033[2K\033[90m{sub_info}\033[0m\033[1A\r\033[{cursor_col}C"
+            else:
+                prompt_line = f"\r\033[2K{prompt_display_str} {before}{cursor_block}{after}"
+
             sys.stdout.write(prompt_line)
             sys.stdout.flush()
 
@@ -174,13 +188,17 @@ def get_smart_input(prompt_display_str):
                 popup_lines = render_slash_autocomplete(current_text, matches, selected_idx, term_cols)
                 
                 output_buf = []
+                if sub_info:
+                    output_buf.append(f"\r\n\033[2K\033[90m{sub_info}\033[0m")
                 for pl in popup_lines:
                     output_buf.append(f"\r\n\033[2K{pl}")
-                output_buf.append(f"\033[{len(popup_lines)}A")
+                
+                up_steps = len(popup_lines) + (1 if sub_info else 0)
+                output_buf.append(f"\033[{up_steps}A\r\033[{cursor_col}C")
                 sys.stdout.write("".join(output_buf))
                 sys.stdout.flush()
                 
-                last_popup_lines_count = len(popup_lines)
+                last_popup_lines_count = len(popup_lines) + (1 if sub_info else 0)
 
             k = read_key_raw(fd)
 
@@ -188,7 +206,10 @@ def get_smart_input(prompt_display_str):
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                sys.stdout.write("\r\n")
+                if sub_info:
+                    sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n\033[2K\033[90m{sub_info}\033[0m\r\n")
+                else:
+                    sys.stdout.write("\r\n")
                 sys.stdout.flush()
                 return ""
 
@@ -197,7 +218,10 @@ def get_smart_input(prompt_display_str):
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    sys.stdout.write("\r\n")
+                    if sub_info:
+                        sys.stdout.write(f"\r\033[2K{prompt_display_str}\r\n\033[2K\033[90m{sub_info}\033[0m\r\n")
+                    else:
+                        sys.stdout.write("\r\n")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -245,7 +269,10 @@ def get_smart_input(prompt_display_str):
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
                 
-                sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n")
+                if sub_info:
+                    sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n\033[2K\033[90m{sub_info}\033[0m\r\n")
+                else:
+                    sys.stdout.write(f"\r\033[2K{prompt_display_str} {current_text}\r\n")
                 sys.stdout.flush()
                 return current_text.strip()
 

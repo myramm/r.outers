@@ -161,12 +161,17 @@ def main():
 
     while True:
         try:
+            full_cfg = load_full_config()
+            auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
+            
             prov_name = config.get('provider_id', 'ai')
             curr_model = config.get('model', 'model')
-            model_str = f"\033[90m({prov_name}:{curr_model})\033[0m "
-            prompt_str = f"{model_str}\033[1;36mr.outers >\033[0m"
+            perm_label = "Auto-Approve" if auto_approve else "Ask Permission"
+            
+            sub_info = f"{prov_name}:{curr_model} • {perm_label}"
+            prompt_str = "\033[1;36mr.outers >\033[0m"
             console.print("")
-            user_input = get_smart_input(prompt_str)
+            user_input = get_smart_input(prompt_str, sub_info=sub_info)
         except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow]Keluar...[/yellow]")
             break
