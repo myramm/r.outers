@@ -1,6 +1,6 @@
 import os
 import json
-from rich.prompt import Prompt, Confirm
+from rich.prompt import Prompt
 from ui import console
 
 CONFIG_FILE = os.path.expanduser("~/.routers_config.json")
@@ -67,13 +67,13 @@ def load_full_config():
                 data = json.load(f)
                 if "base_url" in data and "providers" not in data:
                     migrated = {
-                        "active_provider": "custom_default",
+                        "active_provider": "clouvia",
                         "providers": {
-                            "custom_default": {
-                                "name": "Default Provider",
-                                "base_url": data.get("base_url", ""),
+                            "clouvia": {
+                                "name": "Clouvia Router",
+                                "base_url": "https://router.clouvia.id/v1",
                                 "api_key": data.get("api_key", ""),
-                                "model": data.get("model", "deepseek-chat")
+                                "model": "free-model"
                             }
                         }
                     }
@@ -136,15 +136,20 @@ def update_active_model(new_model):
     return False
 
 def add_new_provider():
-    console.print("\n[bold cyan]➕ Tambah / Pilih Provider[/bold cyan]")
+    console.print("\n[bold cyan]➕ Tambah / Setup Provider[/bold cyan]")
     console.print("Pilih Provider:")
     keys = list(PRESET_PROVIDERS.keys())
     for idx, k in enumerate(keys, 1):
         p = PRESET_PROVIDERS[k]
         console.print(f"  [bold yellow]{idx}[/bold yellow]. {p['name']}")
     console.print(f"  [bold yellow]{len(keys) + 1}[/bold yellow]. Custom Provider / Endpoint Lain")
+    console.print(f"  [bold red]e / E[/bold red]. Batal")
 
-    choice = Prompt.ask(f"Pilih (1-{len(keys) + 1})", default="1")
+    choice = Prompt.ask(f"Pilih (1-{len(keys) + 1}, e)", default="1").strip()
+    if choice.lower() == "e":
+        console.print("[yellow]Batal menambah provider.[/yellow]")
+        return get_active_config()
+
     try:
         c_idx = int(choice) - 1
         if 0 <= c_idx < len(keys):
@@ -154,16 +159,19 @@ def add_new_provider():
             base_url = preset["base_url"]
             default_m = preset["default_model"]
             prov_id = p_key
-        else:
+        elif c_idx == len(keys):
             prov_id = Prompt.ask("ID Provider unik (contoh: sambanova / deepinfra)").strip().lower()
+            if not prov_id or prov_id == "e":
+                return get_active_config()
             name = Prompt.ask("Nama Tampilan Provider", default=prov_id.capitalize())
             base_url = Prompt.ask("Base URL (contoh: https://api.sambanova.ai/v1)")
             default_m = Prompt.ask("Default Model")
+        else:
+            console.print("[bold red]❌ Input nomor tidak valid![/bold red]")
+            return get_active_config()
     except ValueError:
-        prov_id = "custom"
-        name = "Custom Provider"
-        base_url = Prompt.ask("Base URL")
-        default_m = Prompt.ask("Default Model")
+        console.print("[bold red]❌ Input tidak valid![/bold red]")
+        return get_active_config()
 
     api_key = Prompt.ask("Masukkan API Key", password=True)
     model = Prompt.ask("Model", default=default_m)
@@ -198,9 +206,14 @@ def switch_provider():
         is_active = " [bold green](AKTIF)[/bold green]" if k == active_key else ""
         console.print(f"  [bold yellow]{idx}[/bold yellow]. {p.get('name', k)} ({p.get('model')}){is_active}")
     console.print(f"  [bold cyan]+[/bold cyan]. Tambah / Setup Provider Baru")
+    console.print(f"  [bold red]e / E[/bold red]. Batal / Kembali")
 
-    sel = Prompt.ask("\nPilih nomor provider untuk diaktifkan atau '+' untuk tambah", default="1")
-    if sel.strip() == "+":
+    sel = Prompt.ask("\nPilih nomor provider (1-{}, +, e)".format(len(p_keys)), default="1").strip()
+    if sel.lower() == "e":
+        console.print("[yellow]Batal berganti provider.[/yellow]")
+        return get_active_config()
+    
+    if sel == "+":
         return add_new_provider()
     
     try:
@@ -212,11 +225,22 @@ def switch_provider():
             target = providers[target_key]
             console.print(f"[bold green]✔ Berganti ke Provider: {target.get('name')} (Model: {target.get('model')})[/bold green]\n")
             return get_active_config()
-    except Exception:
-        pass
-    
-    return get_active_config()
+        else:
+            console.print(f"[bold red]❌ Input tidak valid! Nomor harus antara 1 sampai {len(p_keys)}.[/bold red]")
+            return get_active_config()
+    except ValueError:
+        console.print(f"[bold red]❌ Input '{sel}' tidak valid![/bold red]")
+        return get_active_config()
 
 def setup_initial_config():
-    console.print("\n[bold cyan]🛠️ Inisialisasi r.outers Configuration[/bold cyan]")
-    return add_new_provider()
+    return {
+        "active_provider": "clouvia",
+        "providers": {
+            "clouvia": {
+                "name": "Clouvia Router",
+                "base_url": "https://router.clouvia.id/v1",
+                "api_key": "",
+                "model": "free-model"
+            }
+        }
+    }

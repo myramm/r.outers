@@ -92,34 +92,49 @@ def handle_model_menu(config):
     for idx, m in enumerate(rec_models, 1):
         lines.append(f"  [bold yellow]{idx}[/bold yellow]. {m}")
     lines.append("  [bold cyan]c[/bold cyan]. Ketik nama model custom manual")
-    lines.append("  [bold magenta]p[/bold magenta]. Ganti / Tambah Provider (Clouvia / OpenRouter / Groq / dll)")
+    lines.append("  [bold magenta]p[/bold magenta]. Ganti / Tambah Provider")
     lines.append("  [bold blue]l[/bold blue]. Lihat tabel lengkap semua Provider & Model")
+    lines.append("  [bold red]e / E[/bold red]. Batal / Kembali (Exit menu)")
 
     console.print(Panel("\n".join(lines), title="🤖 Pengaturan Model & Provider"))
 
-    choice = Prompt.ask("\nPilih opsi", default="1")
+    choice = Prompt.ask("\nPilih opsi (1-{}, c, p, l, e)".format(len(rec_models)), default="1").strip()
+    
+    # Check Exit / Cancel
+    if choice.lower() == "e":
+        console.print("[yellow]Batal mengubah model.[/yellow]")
+        return config
+
     if choice.lower() == "p":
         return switch_provider()
     elif choice.lower() == "l":
         show_all_providers_and_models(config)
         return config
     elif choice.lower() == "c":
-        new_m = Prompt.ask("Masukkan nama model custom")
-    else:
-        try:
-            idx = int(choice) - 1
-            if 0 <= idx < len(rec_models):
-                new_m = rec_models[idx]
-            else:
-                new_m = choice
-        except ValueError:
-            new_m = choice
+        new_m = Prompt.ask("Masukkan nama model custom (atau 'e' untuk batal)").strip()
+        if new_m.lower() == "e" or not new_m:
+            console.print("[yellow]Batal mengubah model.[/yellow]")
+            return config
+        update_active_model(new_m)
+        config["model"] = new_m
+        console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
+        return config
 
-    if new_m.strip():
-        update_active_model(new_m.strip())
-        config["model"] = new_m.strip()
-        console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m.strip()}[/bold yellow]")
-    return config
+    # Check numeric choice strictly
+    try:
+        idx = int(choice) - 1
+        if 0 <= idx < len(rec_models):
+            new_m = rec_models[idx]
+            update_active_model(new_m)
+            config["model"] = new_m
+            console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
+            return config
+        else:
+            console.print(f"[bold red]❌ Input tidak valid! Pilihan nomor harus antara 1 sampai {len(rec_models)}.[/bold red]")
+            return config
+    except ValueError:
+        console.print(f"[bold red]❌ Input '{choice}' tidak valid! Ketik angka 1-{len(rec_models)}, 'c', 'p', 'l', atau 'e'.[/bold red]")
+        return config
 
 def main():
     show_banner()
@@ -179,10 +194,10 @@ def main():
                 continue
             elif cmd_lower == "/help":
                 console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (e.g. /model coding-high)
-• [bold cyan]/provider[/bold cyan]           : Pindah Provider (Clouvia / OpenRouter / Groq / dll)
-• [bold cyan]/list[/bold cyan]               : Tabel lengkap semua Provider & Model yang didukung
-• [bold cyan]/yolo[/bold cyan]               : Toggle Mode Auto-Pilot (tanpa konfirmasi y/n)
+• [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /model coding-high)
+• [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API
+• [bold cyan]/list[/bold cyan]               : Tabel lengkap semua Provider & Model
+• [bold cyan]/yolo[/bold cyan]               : Toggle Mode Auto-Pilot (tanpa konfirmasi manual y/n)
 • [bold cyan]/memory[/bold cyan]             : Lihat memori AI
 • [bold cyan]/clear[/bold cyan]              : Bersihkan riwayat chat sesi ini
 • [bold cyan]/exit[/bold cyan]               : Keluar
