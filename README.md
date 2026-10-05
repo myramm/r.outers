@@ -93,25 +93,6 @@ Anda juga dapat meletakkan folder skill (yang berisi file `SKILL.md`) secara lan
 
 ---
 
-## 🌐 Fullstack Web Documentation & Terminal Simulator
-
-`r.outers` kini dilengkapi aplikasi dokumentasi fullstack berbasis **React 18 + Vite + Tailwind CSS + Express Backend**, siap dideploy langsung ke **Vercel**:
-
-- ⌨️ **Live Interactive Terminal Simulator**: Coba langsung antarmuka prompt 2-baris, perintah slash (`/model`, `/skills`, `/help`), dan tool calling di browser.
-- ⚡ **80+ Models Explorer**: Katalog model NVIDIA NIM & Clouvia dengan filter context window, latency, dan tag reasoning.
-- 🧩 **Skill Ecosystem & Anti-Slop**: Panduan pembuatan dan instalasi modul skill baru.
-- 🔌 **Live REST API Explorer**: Uji endpoint backend secara interaktif.
-
-### Cara Menjalankan Docs Lokal / Deploy:
-```bash
-cd docs-app
-npm install
-npm run dev     # Menjalankan frontend Vite & backend Express secara lokal
-npm run build   # Build production untuk Vercel / Cloudflare
-```
-
----
-
 ## 🔑 Pengaturan & Cara Kelola Konfigurasi (Manual JSON)
 
 Semua konfigurasi model, provider, API key, timeout, dan preferensi CLI tersimpan rapi dan dapat diedit secara manual di file `~/.routers_config.json`.
