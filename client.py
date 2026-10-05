@@ -123,7 +123,7 @@ def call_ai(messages, config):
 
     def fetch_worker():
         try:
-            resp = session.post(url, headers=headers, json=payload, timeout=90)
+            resp = session.post(url, headers=headers, json=payload, timeout=180)
             if resp.status_code == 200:
                 result_container["data"] = resp.json()
             else:

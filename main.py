@@ -44,16 +44,14 @@ PROVIDER_MODELS = {
     "nvidia": {
         "name": "NVIDIA NIM (https://integrate.api.nvidia.com/v1)",
         "models": [
-            "nvidia/llama-3.1-nemotron-70b-instruct",
-            "nvidia/nemotron-4-340b-instruct",
-            "meta/llama-3.2-90b-vision-instruct",
-            "mistralai/mistral-large-2-instruct",
-            "mistralai/codestral-22b-instruct-v0.1",
-            "deepseek-ai/deepseek-v4.1-flash",
-            "google/gemma-3-12b-it",
+            "nvidia/nemotron-3-super-120b-a12b",
+            "openai/gpt-oss-20b",
+            "nvidia/nemotron-3.5-lightning-30b-a3b",
+            "nvidia/nemotron-3-ultra-550b-a55b",
+            "google/diffusiongemma-26b-a4b-it",
+            "meta/muse-glimmer-30b",
             "z-ai/glm-5.3",
-            "moonshotai/kimi-k3",
-            "openai/gpt-oss-20b"
+            "deepseek-ai/deepseek-v4.1-flash"
         ]
     }
 }
@@ -280,9 +278,12 @@ def main():
                     })
                 continue
             else:
-                content = msg.get("content", "")
+                content = msg.get("content") or ""
+                reasoning = msg.get("reasoning_content") or ""
                 if content:
                     print_markdown(content)
+                elif reasoning:
+                    print_markdown(f"*[dim]Alur Berpikir AI / Reasoning:[/dim]*\n\n{reasoning}")
                 break
 
 if __name__ == "__main__":
