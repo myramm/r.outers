@@ -236,23 +236,76 @@ def set_style_settings(style_id=None, theme_id=None):
         
     save_full_config(full_cfg)
 
+def get_terminal_width():
+    try:
+        return shutil.get_terminal_size((80, 24)).columns
+    except Exception:
+        return 80
+
+def get_safe_width(cols=None):
+    w = cols if cols is not None else get_terminal_width()
+    return max(15, w - 2)
+
+def truncate_text(text, max_len, suffix="..."):
+    if not text or len(text) <= max_len:
+        return text
+    if max_len <= len(suffix):
+        return text[:max_len]
+    return text[:max_len - len(suffix)] + suffix
+
+def wrap_text(text, width=None):
+    import textwrap
+    w = width if width is not None else get_safe_width()
+    return textwrap.wrap(text, width=w)
+
+MODEL_CLEAN_MAP = {
+    "nemotron-3-super-120b-a12b": "Nemotron 3 Super 120B",
+    "nemotron-3.5-lightning-30b-a3b": "Nemotron 3.5 Lightning",
+    "nemotron-3-ultra-550b-a55b": "Nemotron 3 Ultra 550B",
+    "nemotron-4-340b-instruct": "Nemotron 4 340B",
+    "gpt-oss-20b": "GPT OSS 20B",
+    "glm-5.3": "GLM 5.3",
+    "deepseek-v4.1-flash": "DeepSeek V4.1 Flash",
+    "deepseek-v4-pro": "DeepSeek V4 Pro",
+    "deepseek-v4-flash": "DeepSeek V4 Flash",
+    "free-model": "Free Model",
+    "claude-opus-4.8": "Claude Opus 4.8",
+    "claude-sonnet-5-thinking-agentic": "Claude Sonnet 5",
+    "gemini-3.8-flash": "Gemini 3.8 Flash",
+    "kimi-k3": "Kimi K3",
+    "minimax-m3": "Minimax M3"
+}
+
+def format_dynamic_model_label(model_name, provider_name="clouvia", max_len=30):
+    if not model_name:
+        return "Default Model"
+    parts = model_name.split("/")[-1]
+    if ":" in parts:
+        sub_parts = parts.split(":")
+        if len(sub_parts) > 1 and sub_parts[1]:
+            raw_id = sub_parts[1].lower()
+        else:
+            raw_id = sub_parts[0].lower()
+    else:
+        raw_id = parts.lower()
+
+    clean = MODEL_CLEAN_MAP.get(raw_id)
+    if not clean:
+        clean = raw_id.replace("-", " ").replace("_", " ").title()
+    return truncate_text(clean, max_len)
+
 def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_col=0, term_cols=None):
     scheme = THEMES_MAP.get(theme_id, THEMES_MAP["terminal"])
     p = scheme["palette"]
     perm_str = "Auto" if auto_approve else "Ask"
     
-    if term_cols is None:
-        try:
-            term_cols = shutil.get_terminal_size((80, 24)).columns
-        except Exception:
-            term_cols = 80
-
-    # Ensure safe divider width strictly under term_cols to never hit edge auto-wrap
-    div_width = max(10, term_cols - 2)
-    divider = f"{p['dim']}{'─' * div_width}\033[0m"
+    cols = term_cols if term_cols is not None else get_terminal_width()
+    safe_w = get_safe_width(cols)
+    
+    divider = f"{p['dim']}{'─' * safe_w}\033[0m"
     
     # Safe input windowing so long text never causes accidental line wraps on zoom
-    max_input_w = max(10, term_cols - 6)
+    max_input_w = max(10, safe_w - 4)
     before = current_input[:cursor_col]
     after = current_input[cursor_col:]
     cursor_block = "\033[42m \033[0m"
@@ -275,36 +328,25 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
     # Input line with > prefix exactly like Antigravity
     input_rendered = f"\033[90m>\033[0m {disp_before}{cursor_block}{disp_after}"
     
-    # Safe status footer formatting that fits within term_cols on 1 line
-    short_model = model_name.split("/")[-1].split(":")[0]
-    prov_id = provider_name.split()[0].lower()
-
-    if term_cols < 34:
-        s_mod = short_model[:8]
-        status_footer = f"{p['prompt_user']}{s_mod}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m"
+    # Dynamic status footer formatting that always fits within safe_w on exactly 1 line
+    if safe_w >= 45:
+        avail_for_model = safe_w - 18
+        m_lbl = format_dynamic_model_label(model_name, provider_name, avail_for_model)
+        status_footer = f"\033[1;33m⚡\033[0m {p['prompt_user']}{m_lbl}\033[0m {p['dim']}·\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}·\033[0m \033[32mReady\033[0m"
+    elif safe_w >= 28:
+        avail_for_model = safe_w - 12
+        m_lbl = format_dynamic_model_label(model_name, provider_name, avail_for_model)
+        status_footer = f"\033[1;33m⚡\033[0m {p['prompt_user']}{m_lbl}\033[0m {p['dim']}·\033[0m {p['diff_add']}{perm_str}\033[0m"
     else:
-        overhead = len(prov_id) + len(perm_str) + 16
-        avail_for_model = max(6, min(24, term_cols - 2 - overhead - 14))
-        if len(short_model) > avail_for_model:
-            s_mod = short_model[:avail_for_model - 2] + ".."
-        else:
-            s_mod = short_model
-
-        left_text = "esc to exit"
-        right_plain = f"{prov_id}:{s_mod} • {perm_str} • Ready"
-        
-        if term_cols >= 48 and (len(left_text) + len(right_plain) + 4) <= term_cols:
-            spaces = max(2, term_cols - 2 - len(left_text) - len(right_plain))
-            status_footer = f"\033[90m{left_text}\033[0m{' ' * spaces}{p['prompt_user']}{prov_id}:{s_mod}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}•\033[0m \033[32mReady\033[0m"
-        else:
-            status_footer = f"{p['prompt_user']}{prov_id}:{s_mod}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}•\033[0m \033[32mReady\033[0m"
+        m_lbl = format_dynamic_model_label(model_name, provider_name, max(6, safe_w - 4))
+        status_footer = f"\033[1;33m⚡\033[0m {p['prompt_user']}{m_lbl}\033[0m"
 
     return {
         "divider": divider,
         "input_rendered": input_rendered,
         "status_footer": status_footer,
         "cursor_col": 2 + disp_cursor_col,
-        "div_width": div_width
+        "div_width": safe_w
     }
 
 def render_split_preview_lines(scheme, width=40):

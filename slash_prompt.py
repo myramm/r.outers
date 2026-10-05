@@ -2,6 +2,7 @@ import os
 import sys
 import select
 import shutil
+import signal
 import tty
 import termios
 import re
@@ -9,6 +10,10 @@ from ui import console
 from styles import (
     get_current_style_settings,
     render_prompt_layout,
+    get_terminal_width,
+    get_safe_width,
+    truncate_text,
+    wrap_text,
     COLOR_SCHEMES,
     THEMES_MAP,
     THEMES
@@ -32,13 +37,16 @@ SLASH_COMMANDS = [
     {"cmd": "/exit", "desc": "Keluar dari r.outers (/quit)"},
 ]
 
-def read_key_raw(fd):
+def read_key_raw(fd, timeout=0.05):
     try:
+        r, _, _ = select.select([fd], [], [], timeout)
+        if not r:
+            return 'TIMEOUT'
         raw = os.read(fd, 4096)
     except Exception:
-        return None
+        return 'TIMEOUT'
     if not raw:
-        return None
+        return 'TIMEOUT'
 
     # Handle bracketed paste mode
     if b'\x1b[200~' in raw:
@@ -151,21 +159,22 @@ def append_input_history(entry):
         except Exception:
             pass
 
+_terminal_resized = False
+
+def _sigwinch_handler(signum, frame):
+    global _terminal_resized
+    _terminal_resized = True
+
 def clear_popup_lines(count):
     if count <= 0:
         return
-    buf = []
-    for _ in range(3): # Move past divider, blank, and status footer
-        buf.append("\033[B")
-    for _ in range(count):
-        buf.append("\033[B\033[2K")
-    buf.append("\033[J")
-    total_up = 3 + count
-    buf.append(f"\033[{total_up}A\r")
-    sys.stdout.write("".join(buf))
+    # Cursor sits on Line 2. Move down 3 lines to Line 5, clear downwards, move back up to Line 2.
+    sys.stdout.write("\033[3B\033[J\033[3A\r")
     sys.stdout.flush()
 
 def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia", model_name="free-model", auto_approve=True):
+    global _terminal_resized
+    _terminal_resized = False
     _, theme_id = get_current_style_settings()
 
     if not sys.stdin.isatty():
@@ -189,17 +198,20 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
     history_idx = len(history)
     saved_draft = ""
 
+    old_sigwinch = None
+    try:
+        old_sigwinch = signal.signal(signal.SIGWINCH, _sigwinch_handler)
+    except Exception:
+        pass
+
     try:
         tty.setraw(fd)
         sys.stdout.write("\033[?7l")
         sys.stdout.flush()
 
-        try:
-            term_cols = shutil.get_terminal_size((80, 24)).columns
-        except Exception:
-            term_cols = 80
-
         is_first_render = True
+        last_rendered_cols = -1
+        need_redraw = True
 
         while True:
             try:
@@ -207,59 +219,79 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
             except Exception:
                 term_cols = 80
 
-            if last_popup_lines_count > 0:
-                clear_popup_lines(last_popup_lines_count)
-                last_popup_lines_count = 0
+            if _terminal_resized or term_cols != last_rendered_cols:
+                _terminal_resized = False
+                need_redraw = True
 
-            layout = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_text, cursor_col=cursor_pos, term_cols=term_cols)
-            cursor_col = layout.get("cursor_col", cursor_pos)
-            cursor_move = f"\033[{cursor_col}C" if cursor_col > 0 else ""
+            if need_redraw:
+                last_rendered_cols = term_cols
 
-            prefix_jump = "" if is_first_render else "\033[1A\r"
-            is_first_render = False
+                if last_popup_lines_count > 0:
+                    clear_popup_lines(last_popup_lines_count)
+                    last_popup_lines_count = 0
 
-            # Complete 4-line Box Layout:
-            # Line 1: Top divider
-            # Line 2: Input line (cursor sits here)
-            # Line 3: Bottom divider
-            # Line 4: Status footer (always formatted to fit)
-            prompt_bundle = (
-                f"{prefix_jump}\033[2K{layout['divider']}\r\n"
-                f"\033[2K{layout['input_rendered']}\r\n"
-                f"\033[2K{layout['divider']}\r\n"
-                f"\033[2K{layout['status_footer']}"
-            )
+                layout = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_text, cursor_col=cursor_pos, term_cols=term_cols)
+                cursor_col = layout.get("cursor_col", cursor_pos)
+                cursor_move = f"\033[{cursor_col}C" if cursor_col > 0 else ""
 
-            if current_text.startswith("/"):
-                q = current_text.strip().lower()
-                matches = [c for c in SLASH_COMMANDS if q in c["cmd"].lower() or c["cmd"].startswith(q)]
-                if not matches:
-                    matches = [{"cmd": current_text, "desc": "Jalankan perintah"}]
+                prefix_jump = "" if is_first_render else "\033[1A\r"
+                is_first_render = False
 
-                if selected_idx >= len(matches):
-                    selected_idx = max(0, len(matches) - 1)
+                # Complete 4-line Box Layout:
+                # Line 1: Top divider
+                # Line 2: Input line (cursor sits here)
+                # Line 3: Bottom divider
+                # Line 4: Status footer (always formatted to fit)
+                prompt_bundle = (
+                    f"{prefix_jump}\033[2K{layout['divider']}\r\n"
+                    f"\033[2K{layout['input_rendered']}\r\n"
+                    f"\033[2K{layout['divider']}\r\n"
+                    f"\033[2K{layout['status_footer']}"
+                )
 
-                popup_lines = render_slash_autocomplete(current_text, matches, selected_idx, term_cols)
-                
-                popup_buf = []
-                for pl in popup_lines:
-                    popup_buf.append(f"\r\n\033[2K{pl}")
-                
-                total_up = 2 + len(popup_lines)
-                sys.stdout.write(f"{prompt_bundle}{''.join(popup_buf)}\033[{total_up}A\r{cursor_move}")
-                sys.stdout.flush()
-                last_popup_lines_count = len(popup_lines)
-            else:
-                sys.stdout.write(f"{prompt_bundle}\033[2A\r{cursor_move}")
-                sys.stdout.flush()
+                if current_text.startswith("/"):
+                    q = current_text.strip().lower()
+                    matches = [c for c in SLASH_COMMANDS if q in c["cmd"].lower() or c["cmd"].startswith(q)]
+                    if not matches:
+                        matches = [{"cmd": current_text, "desc": "Jalankan perintah"}]
+
+                    if selected_idx >= len(matches):
+                        selected_idx = max(0, len(matches) - 1)
+
+                    popup_lines = render_slash_autocomplete(current_text, matches, selected_idx, term_cols)
+                    
+                    popup_buf = []
+                    for pl in popup_lines:
+                        popup_buf.append(f"\r\n\033[2K{pl}")
+                    
+                    total_up = 2 + len(popup_lines)
+                    sys.stdout.write(f"{prompt_bundle}{''.join(popup_buf)}\033[{total_up}A\r{cursor_move}")
+                    sys.stdout.flush()
+                    last_popup_lines_count = len(popup_lines)
+                else:
+                    sys.stdout.write(f"{prompt_bundle}\033[2A\r{cursor_move}")
+                    sys.stdout.flush()
+
+                need_redraw = False
 
             k = read_key_raw(fd)
+
+            if k == 'TIMEOUT':
+                try:
+                    new_cols = shutil.get_terminal_size((80, 24)).columns
+                except Exception:
+                    new_cols = term_cols
+                if _terminal_resized or new_cols != last_rendered_cols:
+                    need_redraw = True
+                continue
+
+            need_redraw = True
 
             if k == 'CTRL_C':
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K\r\n\033[2K\033[2A")
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m {current_text}\r\n\033[2K\r\n\033[2K\033[1A\r")
                 sys.stdout.flush()
                 return ""
 
@@ -268,7 +300,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \r\n\033[2K\r\n\033[2K\033[2A")
+                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \r\n\033[2K\r\n\033[2K\033[1A\r")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -334,7 +366,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     last_popup_lines_count = 0
                 
                 # Finalize: leave clean top divider + user input line in history
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \033[1;37m{current_text}\033[0m\r\n\033[2K\r\n\033[2K\033[2A")
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\033[90m>\033[0m \033[1;37m{current_text}\033[0m\r\n\033[2K\r\n\033[2K\033[1A\r")
                 sys.stdout.flush()
                 
                 res = current_text.strip()
@@ -367,6 +399,11 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                 selected_idx = 0
 
     finally:
+        if old_sigwinch is not None:
+            try:
+                signal.signal(signal.SIGWINCH, old_sigwinch)
+            except Exception:
+                pass
         sys.stdout.write("\033[?7h")
         sys.stdout.flush()
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)

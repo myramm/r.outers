@@ -234,17 +234,21 @@ def interactive_ask_user(question, options, allow_custom=True):
                 sys.stdout.flush()
 
             lines = []
-            box_width = max(32, min(term_cols - 2, 65))
+            box_width = max(24, min(term_cols - 2, 70))
+            inner_w = box_width - 4
             sep = "─" * max(2, box_width - 16)
             lines.append(f"\033[1;36m╭─ ❓ Pertanyaan AI {sep}╮\033[0m")
+            from styles import wrap_text
             for ql in question.splitlines():
                 if ql.strip():
-                    lines.append(f"\033[1;36m│\033[0m \033[1;37m{ql[:box_width-4]}\033[0m")
-            lines.append(f"\033[1;36m╰{'─' * max(2, box_width - 2)}╯\033[0m")
+                    wrapped_chunks = wrap_text(ql, width=inner_w)
+                    for chunk in wrapped_chunks:
+                        lines.append(f"\033[1;36m│\033[0m \033[1;37m{chunk:<{inner_w}}\033[0m \033[1;36m│\033[0m")
+            lines.append(f"\033[1;36m╰{'─' * (box_width - 2)}╯\033[0m")
 
             for idx, opt in enumerate(all_options):
                 is_sel = (idx == selected_idx)
-                opt_str = opt[:box_width - 6]
+                opt_str = opt[:max(10, box_width - 6)]
                 if is_sel:
                     lines.append(f"  \033[1;32m▸\033[0m \033[7m\033[1;37m {opt_str} \033[0m")
                 else:
