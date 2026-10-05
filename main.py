@@ -17,6 +17,8 @@ from client import build_system_prompt, call_ai
 from selector import select_model_interactive
 from settings import show_settings_hub
 from slash_prompt import get_smart_input
+from queue_manager import get_next_queued_message, has_queued_messages
+from styles import render_prompt_layout, get_current_style_settings
 
 PROVIDER_MODELS = {
     "clouvia": {
@@ -197,22 +199,25 @@ def main():
     messages = [{"role": "system", "content": build_system_prompt()}]
 
     while True:
-        try:
-            full_cfg = load_full_config()
-            auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
-            
-            curr_model = config.get('model', 'model')
-            display_model = format_model_name(curr_model)
-            perm_mode_str = "Auto" if auto_approve else "Ask"
-            perm_icon = "⚡" if auto_approve else "🛡️"
-            
-            sub_info = f"{perm_icon} {display_model}  ·  {perm_mode_str}  ·  Ready"
-            prompt_str = "\033[1;36mr.outers >\033[0m"
+        full_cfg = load_full_config()
+        auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
+        curr_model = config.get('model', 'model')
+
+        queued_msg = get_next_queued_message()
+        if queued_msg:
+            user_input = queued_msg
+            _, cur_theme = get_current_style_settings()
+            layout = render_prompt_layout("agy", cur_theme, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
             console.print("")
-            user_input = get_smart_input(model_name=curr_model, auto_approve=auto_approve)
-        except (KeyboardInterrupt, EOFError):
-            console.print("\n[yellow]Keluar...[/yellow]")
-            break
+            sys.stdout.write(f"\r\033[2K{layout['top_line']}\r\n\033[2K{layout['bottom_prefix']}\033[1;37m{user_input}\033[0m\r\n")
+            sys.stdout.flush()
+        else:
+            try:
+                console.print("")
+                user_input = get_smart_input(model_name=curr_model, auto_approve=auto_approve)
+            except (KeyboardInterrupt, EOFError):
+                console.print("\n[yellow]Keluar...[/yellow]")
+                break
 
         if not user_input.strip():
             continue
