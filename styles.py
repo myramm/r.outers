@@ -247,30 +247,54 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
         except Exception:
             term_cols = 80
 
-    div_width = max(10, term_cols)
+    # Ensure safe divider width strictly under term_cols to never hit edge auto-wrap
+    div_width = max(10, term_cols - 2)
     divider = f"{p['dim']}{'─' * div_width}\033[0m"
     
+    # Safe input windowing so long text never causes accidental line wraps on zoom
+    max_input_w = max(10, term_cols - 4)
+    before = current_input[:cursor_col]
+    after = current_input[cursor_col:]
+    cursor_block = "\033[42m \033[0m"
+
+    if len(current_input) <= max_input_w:
+        disp_before = before
+        disp_after = after
+        disp_cursor_col = len(before)
+    else:
+        if cursor_col < max_input_w:
+            disp_before = before
+            disp_after = after[:max_input_w - len(before)]
+            disp_cursor_col = cursor_col
+        else:
+            start_i = cursor_col - max_input_w + 1
+            disp_before = current_input[start_i:cursor_col]
+            disp_after = ""
+            disp_cursor_col = len(disp_before)
+
+    input_rendered = f"{disp_before}{cursor_block}{disp_after}"
+    
+    # Safe status footer formatting that always fits within term_cols on 1 line
     short_model = model_name.split("/")[-1].split(":")[0]
     prov_id = provider_name.split()[0].lower()
 
-    cursor_block = "\033[42m \033[0m"
-    before = current_input[:cursor_col]
-    after = current_input[cursor_col:]
-    input_rendered = f"{before}{cursor_block}{after}"
-
-    # Exact Layout:
-    # ────────────────────────────── (Full terminal width auto-adjusted)
-    # Hai
-    # ────────────────────────────── (Full terminal width auto-adjusted)
-    #
-    # provider:model • Auto • Ready
-    status_footer = f"{p['prompt_user']}{prov_id}:{short_model}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}•\033[0m \033[32mReady\033[0m"
+    if term_cols < 32:
+        s_mod = short_model[:8]
+        status_footer = f"{p['prompt_user']}{s_mod}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m"
+    else:
+        overhead = len(prov_id) + len(perm_str) + 16
+        avail_for_model = max(6, term_cols - 2 - overhead)
+        if len(short_model) > avail_for_model:
+            s_mod = short_model[:avail_for_model - 2] + ".."
+        else:
+            s_mod = short_model
+        status_footer = f"{p['prompt_user']}{prov_id}:{s_mod}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}•\033[0m \033[32mReady\033[0m"
 
     return {
         "divider": divider,
         "input_rendered": input_rendered,
         "status_footer": status_footer,
-        "cursor_col": len(before),
+        "cursor_col": disp_cursor_col,
         "div_width": div_width
     }
 

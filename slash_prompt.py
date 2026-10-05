@@ -195,10 +195,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
         except Exception:
             term_cols = 80
 
-        # Render top divider once initially
-        layout_init = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_text, cursor_col=cursor_pos, term_cols=term_cols)
-        sys.stdout.write(f"\r\033[2K{layout_init['divider']}\r\n")
-        sys.stdout.flush()
+        is_first_render = True
 
         while True:
             try:
@@ -211,11 +208,20 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                 last_popup_lines_count = 0
 
             layout = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_text, cursor_col=cursor_pos, term_cols=term_cols)
-            cursor_col = cursor_pos
+            cursor_col = layout.get("cursor_col", cursor_pos)
+            cursor_move = f"\033[{cursor_col}C" if cursor_col > 0 else ""
 
-            # Print input line, bottom divider, status footer (no gap), and return cursor up 2 lines to input
+            prefix_jump = "" if is_first_render else "\033[1A\r"
+            is_first_render = False
+
+            # Complete 4-line Box Layout:
+            # Line 1: Top divider
+            # Line 2: Input line (cursor sits here)
+            # Line 3: Bottom divider
+            # Line 4: Status footer (always formatted to fit)
             prompt_bundle = (
-                f"\r\033[2K{layout['input_rendered']}\r\n"
+                f"{prefix_jump}\033[2K{layout['divider']}\r\n"
+                f"\033[2K{layout['input_rendered']}\r\n"
                 f"\033[2K{layout['divider']}\r\n"
                 f"\033[2K{layout['status_footer']}"
             )
@@ -236,11 +242,11 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     popup_buf.append(f"\r\n\033[2K{pl}")
                 
                 total_up = 2 + len(popup_lines)
-                sys.stdout.write(f"{prompt_bundle}{''.join(popup_buf)}\033[{total_up}A\r\033[{cursor_col}C")
+                sys.stdout.write(f"{prompt_bundle}{''.join(popup_buf)}\033[{total_up}A\r{cursor_move}")
                 sys.stdout.flush()
                 last_popup_lines_count = len(popup_lines)
             else:
-                sys.stdout.write(f"{prompt_bundle}\033[2A\r\033[{cursor_col}C")
+                sys.stdout.write(f"{prompt_bundle}\033[2A\r{cursor_move}")
                 sys.stdout.flush()
 
             k = read_key_raw(fd)
@@ -249,7 +255,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                sys.stdout.write(f"\r\033[2K{current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
                 sys.stdout.flush()
                 return ""
 
@@ -258,7 +264,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    sys.stdout.write(f"\r\033[2K\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -324,7 +330,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     last_popup_lines_count = 0
                 
                 # Output finalized clean block
-                sys.stdout.write(f"\r\033[2K{current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
+                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K{layout['status_footer']}\r\n")
                 sys.stdout.flush()
                 
                 res = current_text.strip()
