@@ -151,6 +151,43 @@ def show_skills_table():
     
     console.print(table)
 
+def format_model_name(model_id):
+    if not model_id:
+        return "Default Model"
+    name = model_id.split("/")[-1]
+    custom_map = {
+        "nemotron-3-super-120b-a12b": "Nemotron 3 Super 120B",
+        "nemotron-3.5-lightning-30b-a3b": "Nemotron 3.5 Lightning 30B",
+        "nemotron-3-ultra-550b-a55b": "Nemotron 3 Ultra 550B",
+        "nemotron-4-340b-instruct": "Nemotron 4 340B",
+        "gpt-oss-20b": "GPT OSS 20B",
+        "glm-5.3": "GLM 5.3",
+        "deepseek-v4.1-flash": "DeepSeek V4.1 Flash",
+        "deepseek-v4-pro": "DeepSeek V4 Pro",
+        "deepseek-v4-flash": "DeepSeek V4 Flash",
+        "diffusiongemma-26b-a4b-it": "DiffusionGemma 26B",
+        "coding-high": "Coding High",
+        "coding-high-flash": "Coding High Flash",
+        "free-model": "Free Model",
+        "claude-opus-4.8": "Claude Opus 4.8",
+        "claude-sonnet-5-thinking-agentic": "Claude Sonnet 5 Thinking",
+        "gemini-3.8-flash": "Gemini 3.8 Flash",
+        "kimi-k3": "Kimi K3",
+        "minimax-m3": "Minimax M3"
+    }
+    if name.lower() in custom_map:
+        return custom_map[name.lower()]
+    cleaned = name.replace("-", " ").replace("_", " ")
+    words = []
+    for w in cleaned.split():
+        if w.lower() in ("ai", "gpt", "glm", "oss", "it", "ui", "api", "rts", "nim"):
+            words.append(w.upper())
+        elif w.lower() == "deepseek":
+            words.append("DeepSeek")
+        else:
+            words.append(w.capitalize())
+    return " ".join(words)
+
 def main():
     show_banner()
     full_cfg = load_full_config()
@@ -164,11 +201,12 @@ def main():
             full_cfg = load_full_config()
             auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
             
-            prov_name = config.get('provider_id', 'ai')
             curr_model = config.get('model', 'model')
-            perm_label = "Auto-Approve" if auto_approve else "Ask Permission"
+            display_model = format_model_name(curr_model)
+            perm_mode_str = "Auto" if auto_approve else "Ask"
+            perm_icon = "⚡" if auto_approve else "🛡️"
             
-            sub_info = f"{prov_name}:{curr_model} • {perm_label}"
+            sub_info = f"{perm_icon} {display_model}  ·  {perm_mode_str}  ·  Ready"
             prompt_str = "\033[1;36mr.outers >\033[0m"
             console.print("")
             user_input = get_smart_input(prompt_str, sub_info=sub_info)
