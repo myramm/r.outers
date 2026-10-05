@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import select
+import shutil
 import tty
 import termios
 from ui import console
@@ -235,12 +236,18 @@ def set_style_settings(style_id=None, theme_id=None):
         
     save_full_config(full_cfg)
 
-def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_col=0, term_cols=50):
+def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_col=0, term_cols=None):
     scheme = THEMES_MAP.get(theme_id, THEMES_MAP["terminal"])
     p = scheme["palette"]
     perm_str = "Auto" if auto_approve else "Ask"
     
-    div_width = max(30, min(term_cols, 60))
+    if term_cols is None:
+        try:
+            term_cols = shutil.get_terminal_size((80, 24)).columns
+        except Exception:
+            term_cols = 80
+
+    div_width = max(10, term_cols)
     divider = f"{p['dim']}{'─' * div_width}\033[0m"
     
     short_model = model_name.split("/")[-1].split(":")[0]
@@ -252,9 +259,9 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
     input_rendered = f"{before}{cursor_block}{after}"
 
     # Exact Layout:
-    # ──────────────────────────────
+    # ────────────────────────────── (Full terminal width auto-adjusted)
     # Hai
-    # ──────────────────────────────
+    # ────────────────────────────── (Full terminal width auto-adjusted)
     #
     # provider:model • Auto • Ready
     status_footer = f"{p['prompt_user']}{prov_id}:{short_model}\033[0m {p['dim']}•\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}•\033[0m \033[32mReady\033[0m"

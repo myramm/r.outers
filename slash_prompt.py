@@ -1,6 +1,7 @@
 import os
 import sys
 import select
+import shutil
 import tty
 import termios
 import re
@@ -188,9 +189,9 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
         sys.stdout.flush()
 
         try:
-            term_cols = os.get_terminal_size().columns
+            term_cols = shutil.get_terminal_size((80, 24)).columns
         except Exception:
-            term_cols = 50
+            term_cols = 80
 
         # Render top divider once initially
         layout_init = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input="", cursor_col=0, term_cols=term_cols)
@@ -199,9 +200,9 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
 
         while True:
             try:
-                term_cols = os.get_terminal_size().columns
+                term_cols = shutil.get_terminal_size((80, 24)).columns
             except Exception:
-                term_cols = 50
+                term_cols = 80
 
             if last_popup_lines_count > 0:
                 clear_popup_lines(last_popup_lines_count)
