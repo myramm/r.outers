@@ -359,8 +359,8 @@ def execute_tool(name, args, auto_approve=False):
                     console.print("[bold green]✔ RTS > Always Allow enabled.[/bold green]")
 
             import time
-            from client import EscWatcher
-            watcher = EscWatcher()
+            from queue_manager import AsyncInputQueueWatcher
+            watcher = AsyncInputQueueWatcher()
             watcher.start()
 
             proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)

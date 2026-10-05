@@ -9,6 +9,7 @@ from ui import console
 
 _MESSAGE_QUEUE = deque()
 _QUEUE_LOCK = threading.Lock()
+_PENDING_DRAFT = ""
 
 def get_next_queued_message():
     with _QUEUE_LOCK:
@@ -25,10 +26,22 @@ def add_queued_message(msg):
         with _QUEUE_LOCK:
             _MESSAGE_QUEUE.append(msg.strip())
 
+def set_pending_draft(text):
+    global _PENDING_DRAFT
+    _PENDING_DRAFT = text
+
+def get_and_clear_pending_draft():
+    global _PENDING_DRAFT
+    draft = _PENDING_DRAFT
+    _PENDING_DRAFT = ""
+    return draft
+
 class AsyncInputQueueWatcher:
     """
     Background listener that lets user type & press ENTER to queue messages
     while AI is streaming, thinking, or running tools!
+    Keystrokes are echoed live. If ENTER is pressed, the message is queued.
+    If unfinished when AI stops, it is preserved in draft.
     ESC / Ctrl+C triggers stop_requested for cancellation.
     """
     def __init__(self):
@@ -77,7 +90,7 @@ class AsyncInputQueueWatcher:
                         self._current_buffer = []
                         if line_text:
                             add_queued_message(line_text)
-                            sys.stdout.write(f"\r\n\033[1;36m⚡ Message queued:\033[0m \033[1;37m\"{line_text}\"\033[0m \033[90m(will execute when AI completes)\033[0m\r\n")
+                            sys.stdout.write(f"\r\n\033[1;36m⚡ [Antrean]:\033[0m \033[1;37m\"{line_text}\"\033[0m \033[90m(akan dijalankan setelah tugas selesai)\033[0m\r\n")
                             sys.stdout.flush()
                         continue
 
@@ -85,6 +98,8 @@ class AsyncInputQueueWatcher:
                     if raw in (b'\x7f', b'\x08'):
                         if self._current_buffer:
                             self._current_buffer.pop()
+                            sys.stdout.write("\b \b")
+                            sys.stdout.flush()
                         continue
 
                     # Printable text characters
@@ -93,6 +108,8 @@ class AsyncInputQueueWatcher:
                         printable = [c for c in decoded if c.isprintable() or c == ' ']
                         if printable:
                             self._current_buffer.extend(printable)
+                            sys.stdout.write("".join(printable))
+                            sys.stdout.flush()
                     except Exception:
                         pass
         except Exception:
@@ -100,9 +117,15 @@ class AsyncInputQueueWatcher:
 
     def stop(self):
         self._running = False
+        if self._current_buffer:
+            leftover = "".join(self._current_buffer).strip()
+            if leftover:
+                set_pending_draft(leftover)
+            self._current_buffer = []
         if self._old_settings is not None:
             try:
                 fd = sys.stdin.fileno()
                 termios.tcsetattr(fd, termios.TCSADRAIN, self._old_settings)
             except Exception:
                 pass
+

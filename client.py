@@ -11,6 +11,7 @@ from ui import console
 from memory import load_memory
 from tools import TOOLS_SCHEMA
 from queue_manager import AsyncInputQueueWatcher
+EscWatcher = AsyncInputQueueWatcher
 
 def get_available_skills_list():
     found = set()

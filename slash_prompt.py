@@ -174,8 +174,10 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
 
-    current_text = ""
-    cursor_pos = 0
+    from queue_manager import get_and_clear_pending_draft
+    draft = get_and_clear_pending_draft()
+    current_text = draft if draft else ""
+    cursor_pos = len(current_text)
     selected_idx = 0
     last_popup_lines_count = 0
     
@@ -194,7 +196,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
             term_cols = 80
 
         # Render top divider once initially
-        layout_init = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input="", cursor_col=0, term_cols=term_cols)
+        layout_init = render_prompt_layout("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_text, cursor_col=cursor_pos, term_cols=term_cols)
         sys.stdout.write(f"\r\033[2K{layout_init['divider']}\r\n")
         sys.stdout.flush()
 
