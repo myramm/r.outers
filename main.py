@@ -256,7 +256,7 @@ def main():
         messages.append({"role": "user", "content": user_input})
 
         while True:
-            with console.status(f"[bold cyan]r.outers ({config.get('provider_id')}:{config.get('model')}) sedang memproses...[/bold cyan] [dim](ESC: Stop)[/dim]"):
+            with console.status(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"):
                 reply = call_ai(messages, config)
 
             if not reply or reply.get("cancelled"):

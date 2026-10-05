@@ -121,14 +121,70 @@ TOOLS_SCHEMA = [
                 "required": ["skill_name"]
             }
         }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "delete_file",
+            "description": "Menghapus file yang tidak diperlukan",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Path file yang akan dihapus"}
+                },
+                "required": ["filepath"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "fetch_url",
+            "description": "Mengambil konten dari URL web (HTTP GET)",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "url": {"type": "string", "description": "URL yang akan diakses"}
+                },
+                "required": ["url"]
+            }
+        }
     }
 ]
+
+def get_bash_action_label(cmd):
+    cmd_s = cmd.strip()
+    c_lower = cmd_s.lower()
+    
+    if c_lower.startswith("git diff"):
+        return "Reviewing changes"
+    elif c_lower.startswith("git apply") or "patch" in c_lower:
+        return "Applying patch"
+    elif c_lower.startswith("git "):
+        return f"Running git {cmd_s[4:].strip()}"
+    elif any(c_lower.startswith(x) for x in ["npm test", "pytest", "cargo test", "go test", "python -m unittest", "ctest", "make test"]):
+        return f"Testing {cmd_s}"
+    elif any(c_lower.startswith(x) for x in ["npm run build", "npm run compile", "cargo build", "make", "gradle", "mvn", "cmake", "gcc", "g++", "clang"]):
+        return f"Building {cmd_s}"
+    elif any(c_lower.startswith(x) for x in ["pkg install", "pkg in ", "apt install", "pip install", "npm i ", "npm install", "yarn add", "cargo install", "gem install"]):
+        return f"Installing {cmd_s}"
+    elif any(c_lower.startswith(x) for x in ["grep ", "rg ", "ag ", "ack "]):
+        return f"Searching {cmd_s}"
+    elif any(c_lower.startswith(x) for x in ["find ", "fd ", "glob "]):
+        return "Finding files"
+    elif any(c_lower.startswith(x) for x in ["ls ", "ls", "dir", "tree"]):
+        return f"Listing {cmd_s}"
+    elif any(c_lower.startswith(x) for x in ["curl ", "wget ", "http "]):
+        return f"Fetching {cmd_s}"
+    else:
+        return f"Running {cmd_s}"
 
 def execute_tool(name, args, auto_approve=False):
     try:
         if name == "execute_bash":
             cmd = args.get("command", "")
-            console.print(f"\n[bold yellow]⚡ Shell Command:[/bold yellow] [bold white]{cmd}[/bold white]")
+            action_label = get_bash_action_label(cmd)
+            console.print(f"\n[bold yellow]⚡ RTS >[/bold yellow] [bold white]{action_label}[/bold white]")
             
             from config import load_full_config, save_full_config
             full_cfg = load_full_config()
@@ -143,7 +199,7 @@ def execute_tool(name, args, auto_approve=False):
                     full_cfg["permission_mode"] = "always_allow"
                     full_cfg["auto_approve"] = True
                     save_full_config(full_cfg)
-                    console.print("[bold green]✔ Mode 'Selalu Izinkan' aktif. Perintah shell selanjutnya akan otomatis dijalankan tanpa konfirmasi.[/bold green]")
+                    console.print("[bold green]✔ RTS > Always Allow enabled.[/bold green]")
 
             import time
             from client import EscWatcher
@@ -156,18 +212,18 @@ def execute_tool(name, args, auto_approve=False):
             cancelled = False
             
             try:
-                with console.status("[bold cyan]⏳ Menjalankan script / perintah...[/bold cyan] [dim](ESC: Stop)[/dim]") as status:
+                with console.status(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim](ESC: Stop)[/dim]") as status:
                     while proc.poll() is None:
                         if watcher.stop_requested.is_set():
                             proc.kill()
                             cancelled = True
                             break
                         elapsed = time.time() - start_time
-                        status.update(f"[bold cyan]⏳ Menjalankan...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]")
+                        status.update(f"[bold cyan]RTS > {action_label}...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]")
                         time.sleep(0.1)
 
                 if cancelled:
-                    console.print("\n[bold yellow]⏹ Eksekusi shell dihentikan paksa oleh pengguna (ESC).[/bold yellow]")
+                    console.print("\n[bold yellow]⏹ RTS > Cancelled by user (ESC).[/bold yellow]")
                     return "Eksekusi command dibatalkan oleh pengguna (ESC)."
 
                 stdout, stderr = proc.communicate()
@@ -176,9 +232,9 @@ def execute_tool(name, args, auto_approve=False):
 
             elapsed = time.time() - start_time
             if proc.returncode == 0:
-                console.print(f"[bold green]✔ Selesai[/bold green] [dim]({elapsed:.1f}s)[/dim]")
+                console.print(f"[bold green]✔ RTS > Completed[/bold green] [dim]({elapsed:.1f}s)[/dim]")
             else:
-                console.print(f"[bold red]✘ Gagal (Exit code: {proc.returncode})[/bold red] [dim]({elapsed:.1f}s)[/dim]")
+                console.print(f"[bold red]✘ RTS > Failed (Exit code: {proc.returncode})[/bold red] [dim]({elapsed:.1f}s)[/dim]")
 
             out = (stdout + "\n" + stderr).strip()
             return f"Returncode: {proc.returncode}\nOutput:\n{out}" if out else f"Returncode: {proc.returncode}\n(No output)"
@@ -186,10 +242,11 @@ def execute_tool(name, args, auto_approve=False):
         elif name == "read_file":
             fp = args.get("filepath")
             if not os.path.exists(fp):
+                console.print(f"[bold red]✘ RTS > Failed: File '{fp}' not found[/bold red]")
                 return f"Error: File '{fp}' tidak ditemukan."
             with open(fp, "r", encoding="utf-8", errors="ignore") as f:
                 content = f.read()
-            console.print(f"[dim cyan]📖 Membaca {fp}[/dim cyan]")
+            console.print(f"[dim cyan]RTS > Reading {fp}[/dim cyan]")
             return content
 
         elif name == "write_file":
@@ -198,7 +255,7 @@ def execute_tool(name, args, auto_approve=False):
             os.makedirs(os.path.dirname(os.path.abspath(fp)), exist_ok=True)
             with open(fp, "w", encoding="utf-8") as f:
                 f.write(content)
-            console.print(f"[bold green]✔ File ditulis: {fp}[/bold green]")
+            console.print(f"[bold green]RTS > Writing {fp}[/bold green]")
             return f"Sukses menulis {fp}"
 
         elif name == "edit_file":
@@ -206,20 +263,36 @@ def execute_tool(name, args, auto_approve=False):
             old_c = args.get("old_content")
             new_c = args.get("new_content")
             if not os.path.exists(fp):
+                console.print(f"[bold red]✘ RTS > Failed: File '{fp}' not found[/bold red]")
                 return f"Error: File '{fp}' tidak ditemukan."
-            with open(fp, "r", encoding="utf-8") as f:
+            with open(fp, "r", encoding="utf-8", errors="ignore") as f:
                 data = f.read()
             if old_c not in data:
+                console.print(f"[bold red]✘ RTS > Failed: old_content mismatch in {fp}[/bold red]")
                 return "Error: old_content tidak cocok dengan isi file."
             data = data.replace(old_c, new_c, 1)
             with open(fp, "w", encoding="utf-8") as f:
                 f.write(data)
-            console.print(f"[bold green]✔ File diedit: {fp}[/bold green]")
+            console.print(f"[bold green]RTS > Editing {fp}[/bold green]")
             return f"Sukses mengupdate {fp}"
+
+        elif name in ("delete_file", "remove_file"):
+            fp = args.get("filepath")
+            if os.path.exists(fp):
+                if os.path.isdir(fp):
+                    import shutil
+                    shutil.rmtree(fp)
+                else:
+                    os.remove(fp)
+                console.print(f"[bold red]RTS > Removing {fp}[/bold red]")
+                return f"Sukses menghapus {fp}"
+            else:
+                console.print(f"[bold red]✘ RTS > Failed: File '{fp}' not found[/bold red]")
+                return f"Error: File '{fp}' tidak ditemukan."
 
         elif name == "list_dir":
             d = args.get("directory", ".")
-            console.print(f"[dim cyan]📁 Memeriksa folder {d}...[/dim cyan]")
+            console.print(f"[dim cyan]RTS > Listing {d}[/dim cyan]")
             files = []
             for root, dirs, f_list in os.walk(d):
                 dirs[:] = [dr for dr in dirs if dr not in ['.git', 'node_modules', '__pycache__', '.cache']]
@@ -234,9 +307,21 @@ def execute_tool(name, args, auto_approve=False):
             q = args.get("query")
             p = args.get("path", ".")
             cmd = f"grep -rnI --exclude-dir={{node_modules,.git,__pycache__}} '{q}' {p} | head -n 25"
-            with console.status(f"[bold cyan]🔍 Mencari '{q}'...[/bold cyan]"):
+            with console.status(f"[bold cyan]RTS > Searching {q}...[/bold cyan]"):
                 res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            console.print(f"[dim cyan]RTS > Searching {q}[/dim cyan]")
             return res.stdout if res.stdout else "Tidak ditemukan."
+
+        elif name == "fetch_url":
+            url = args.get("url")
+            import requests
+            console.print(f"[dim cyan]RTS > Fetching {url}[/dim cyan]")
+            try:
+                r = requests.get(url, timeout=15)
+                return r.text[:4000]
+            except Exception as e:
+                console.print(f"[bold red]✘ RTS > Failed: {e}[/bold red]")
+                return f"Error fetching {url}: {e}"
 
         elif name == "remember":
             scope = args.get("scope", "global")
@@ -245,7 +330,7 @@ def execute_tool(name, args, auto_approve=False):
                 save_global_memory(key, val)
             else:
                 save_project_memory(key, val)
-            console.print(f"[magenta]🧠 Memory [{scope}]: {key} = {val}[/magenta]")
+            console.print(f"[magenta]RTS > Remembering {key} = {val}[/magenta]")
             return f"Tersimpan di memory {scope}."
 
         elif name == "load_skill":
@@ -260,8 +345,9 @@ def execute_tool(name, args, auto_approve=False):
                 if os.path.exists(target_file):
                     with open(target_file, "r", encoding="utf-8", errors="ignore") as f:
                         content = f.read()
-                    console.print(f"[bold cyan]⚡ Memuat Skill:[/bold cyan] [bold green]{s_name}[/bold green]")
+                    console.print(f"[bold cyan]RTS > Loading skill {s_name}[/bold cyan]")
                     return f"=== PANDUAN SPESIALISASI SKILL '{s_name}' ===\n{content}"
+            console.print(f"[bold red]✘ RTS > Failed: Skill '{s_name}' not found[/bold red]")
             return f"Skill '{s_name}' tidak ditemukan di folder skills rts."
 
     except Exception as e:
