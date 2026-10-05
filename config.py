@@ -71,7 +71,7 @@ def save_full_config(config_data):
 
 def get_active_config():
     full_cfg = load_full_config()
-    active_key = full_cfg.get("active_provider", "clouvia")
+    active_key = full_cfg.get("active_provider", "nvidia")
     providers = full_cfg.get("providers", {})
     
     if active_key not in providers:
@@ -80,7 +80,7 @@ def get_active_config():
             full_cfg["active_provider"] = active_key
             save_full_config(full_cfg)
         else:
-            return setup_initial_config()["providers"]["clouvia"]
+            return setup_initial_config()["providers"]["nvidia"]
 
     curr = providers[active_key]
     
@@ -94,13 +94,19 @@ def get_active_config():
             api_k = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
         elif active_key == "nvidia":
             api_k = env_keys.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", os.environ.get("NVAPI_KEY", "")))
+        else:
+            api_k = env_keys.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
 
     return {
         "provider_id": active_key,
         "provider_name": curr.get("name", active_key),
-        "base_url": curr.get("base_url", ""),
+        "base_url": curr.get("base_url", "").rstrip("/"),
         "api_key": api_k,
-        "model": curr.get("model", "free-model")
+        "model": curr.get("model", "nvidia/nemotron-3-super-120b-a12b"),
+        "timeout": curr.get("timeout", 180),
+        "temperature": curr.get("temperature", 0.2),
+        "max_tokens": curr.get("max_tokens", 8192),
+        "settings": full_cfg.get("settings", {})
     }
 
 def update_active_model(new_model):

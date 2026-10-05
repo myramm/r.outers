@@ -93,23 +93,81 @@ Anda juga dapat meletakkan folder skill (yang berisi file `SKILL.md`) secara lan
 
 ---
 
-## 🔑 Pengaturan & Cara Kelola API Key
+## 🌐 Fullstack Web Documentation & Terminal Simulator
 
-### A. Melalui Menu Interaktif CLI
-1. Buka CLI dengan perintah `rts`
-2. Ketik `/setup` (atau `/config`)
-3. Pilih **🔑 Kelola API Key**
-4. Pilih provider yang ingin diubah lalu tempel (*paste*) API Key baru.
+`r.outers` kini dilengkapi aplikasi dokumentasi fullstack berbasis **React 18 + Vite + Tailwind CSS + Express Backend**, siap dideploy langsung ke **Vercel**:
 
-### B. Melalui File Konfigurasi (Manual)
-Konfigurasi API Key tersimpan secara lokal di file `~/.routers_config.json`.
-Untuk mengedit atau menghapus API key secara manual:
+- ⌨️ **Live Interactive Terminal Simulator**: Coba langsung antarmuka prompt 2-baris, perintah slash (`/model`, `/skills`, `/help`), dan tool calling di browser.
+- ⚡ **80+ Models Explorer**: Katalog model NVIDIA NIM & Clouvia dengan filter context window, latency, dan tag reasoning.
+- 🧩 **Skill Ecosystem & Anti-Slop**: Panduan pembuatan dan instalasi modul skill baru.
+- 🔌 **Live REST API Explorer**: Uji endpoint backend secara interaktif.
 
+### Cara Menjalankan Docs Lokal / Deploy:
+```bash
+cd docs-app
+npm install
+npm run dev     # Menjalankan frontend Vite & backend Express secara lokal
+npm run build   # Build production untuk Vercel / Cloudflare
+```
+
+---
+
+## 🔑 Pengaturan & Cara Kelola Konfigurasi (Manual JSON)
+
+Semua konfigurasi model, provider, API key, timeout, dan preferensi CLI tersimpan rapi dan dapat diedit secara manual di file `~/.routers_config.json`.
+
+### Format Lengkap `~/.routers_config.json`:
+
+```json
+{
+  "active_provider": "nvidia",
+  "providers": {
+    "nvidia": {
+      "name": "NVIDIA NIM",
+      "base_url": "https://integrate.api.nvidia.com/v1",
+      "api_key": "nvapi-your-key-here",
+      "model": "nvidia/nemotron-3-super-120b-a12b",
+      "timeout": 180,
+      "temperature": 0.2,
+      "max_tokens": 8192
+    },
+    "clouvia": {
+      "name": "Clouvia Router",
+      "base_url": "https://router.clouvia.id/v1",
+      "api_key": "your-clouvia-key",
+      "model": "free-model",
+      "timeout": 120
+    },
+    "atria": {
+      "name": "Atria ASI",
+      "base_url": "https://api.atria-asi.ai/v1",
+      "api_key": "your-atria-key",
+      "model": "Atria-Dawn-Preview",
+      "timeout": 120
+    },
+    "custom_openai": {
+      "name": "Custom Endpoint / Ollama / Local",
+      "base_url": "http://localhost:11434/v1",
+      "api_key": "ollama",
+      "model": "qwen2.5-coder:32b",
+      "timeout": 180
+    }
+  },
+  "settings": {
+    "theme": "tokyonight",
+    "prompt_style": "double_line",
+    "history_file": "~/.routers_history",
+    "skills_dir": "~/.agents/skills"
+  }
+}
+```
+
+### Cara Mengedit File Konfigurasi:
 ```bash
 nano ~/.routers_config.json
 ```
 
-### C. Melalui File `.env` / Environment Variable
+### Alternatif via File `.env` / Environment Variable:
 Anda juga dapat memasukkan API Key di file `~/.env`:
 ```env
 CLOUVIA_API_KEY=your_clouvia_api_key_here
