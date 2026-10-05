@@ -112,13 +112,6 @@ Semua konfigurasi model, provider, API key, timeout, dan preferensi CLI tersimpa
       "temperature": 0.2,
       "max_tokens": 8192
     },
-    "clouvia": {
-      "name": "Clouvia Router",
-      "base_url": "https://router.clouvia.id/v1",
-      "api_key": "your-clouvia-key",
-      "model": "free-model",
-      "timeout": 120
-    },
     "atria": {
       "name": "Atria ASI",
       "base_url": "https://api.atria-asi.ai/v1",
@@ -149,11 +142,10 @@ nano ~/.routers_config.json
 ```
 
 ### Alternatif via File `.env` / Environment Variable:
-Anda juga dapat memasukkan API Key di file `~/.env`:
+Anda juga dapat memasukkan API Key di file `.env`:
 ```env
-CLOUVIA_API_KEY=your_clouvia_api_key_here
-ATRIA_API_KEY=your_atria_api_key_here
 NVIDIA_API_KEY=nvapi-your_nvidia_api_key_here
+ATRIA_API_KEY=your_atria_api_key_here
 ```
 
 ---
