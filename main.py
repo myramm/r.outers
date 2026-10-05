@@ -40,6 +40,21 @@ PROVIDER_MODELS = {
         "models": [
             "Atria-Dawn-Preview"
         ]
+    },
+    "nvidia": {
+        "name": "NVIDIA NIM (https://integrate.api.nvidia.com/v1)",
+        "models": [
+            "nvidia/llama-3.1-nemotron-70b-instruct",
+            "nvidia/nemotron-4-340b-instruct",
+            "meta/llama-3.2-90b-vision-instruct",
+            "mistralai/mistral-large-2-instruct",
+            "mistralai/codestral-22b-instruct-v0.1",
+            "deepseek-ai/deepseek-v4.1-flash",
+            "google/gemma-3-12b-it",
+            "z-ai/glm-5.3",
+            "moonshotai/kimi-k3",
+            "openai/gpt-oss-20b"
+        ]
     }
 }
 

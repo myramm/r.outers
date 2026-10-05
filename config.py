@@ -17,6 +17,11 @@ PRESET_PROVIDERS = {
         "name": "Atria ASI (Atria-Dawn-Preview)",
         "base_url": "https://api.atria-asi.ai/v1",
         "default_model": "Atria-Dawn-Preview"
+    },
+    "nvidia": {
+        "name": "NVIDIA NIM / Build (integrate.api.nvidia.com)",
+        "base_url": "https://integrate.api.nvidia.com/v1",
+        "default_model": "nvidia/llama-3.1-nemotron-70b-instruct"
     }
 }
 
@@ -87,6 +92,8 @@ def get_active_config():
             api_k = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", ""))
         elif active_key == "atria":
             api_k = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
+        elif active_key == "nvidia":
+            api_k = env_keys.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", os.environ.get("NVAPI_KEY", "")))
 
     return {
         "provider_id": active_key,
