@@ -9,7 +9,7 @@ echo -e "\033[1;36m==========================================\033[0m"
 echo -e "\n\033[1;33m[1/4] Memeriksa & menginstall dependencies...\033[0m"
 if command -v pkg >/dev/null 2>&1; then
     pkg update -y
-    pkg install -y python git curl
+    pkg install -y python python-pip git curl 2>/dev/null || pkg install -y python git curl
 elif command -v apt-get >/dev/null 2>&1; then
     apt-get update -y
     apt-get install -y python3 python3-pip git curl
@@ -19,12 +19,25 @@ elif command -v pacman >/dev/null 2>&1; then
     pacman -Sy --noconfirm python python-pip git curl
 fi
 
+# Clean up broken python3.13 leftover folder if in Termux
+if [ -n "$PREFIX" ] && [ -d "$PREFIX/lib/python3.13" ]; then
+    rm -rf "$PREFIX/lib/python3.13" 2>/dev/null || true
+fi
+
 # 2. Install Python Libraries
 echo -e "\n\033[1;33m[2/4] Menginstall pustaka Python (requests, rich)...\033[0m"
+PY_BIN="python3"
+if ! command -v python3 >/dev/null 2>&1; then
+    PY_BIN="python"
+fi
+
+# Ensure pip is active for new Python version
+$PY_BIN -m ensurepip --upgrade 2>/dev/null || true
+
+$PY_BIN -m pip install --upgrade requests rich --break-system-packages 2>/dev/null || \
+$PY_BIN -m pip install --upgrade requests rich 2>/dev/null || \
 pip install --upgrade requests rich --break-system-packages 2>/dev/null || \
-pip3 install --upgrade requests rich --break-system-packages 2>/dev/null || \
-pip install --upgrade requests rich || \
-pip3 install --upgrade requests rich
+pip3 install --upgrade requests rich 2>/dev/null || true
 
 # 3. Clone / Update Repository
 echo -e "\n\033[1;33m[3/4] Mengunduh r.outers dari GitHub...\033[0m"
