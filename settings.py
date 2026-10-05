@@ -335,11 +335,14 @@ def handle_manage_api_keys_interactive(full_cfg):
     if chosen_target != "back":
         curr_entry = providers[chosen_target]
         console.print(f"\n[bold yellow]Mengubah API Key untuk {curr_entry.get('name')}:[/bold yellow]")
-        new_key = Prompt.ask("Masukkan API Key baru (atau tekan Enter/kosongkan untuk batal)", password=True).strip()
+        new_key = Prompt.ask("Masukkan / Paste API Key baru (atau kosongkan untuk batal)").strip()
         if new_key:
             curr_entry["api_key"] = new_key
             save_full_config(full_cfg)
-            console.print("[bold green]✔ API Key berhasil diperbarui![/bold green]\n")
+            masked = new_key[:6] + "..." + new_key[-4:] if len(new_key) > 12 else "***"
+            console.print(f"[bold green]✔ API Key berhasil disimpan ({masked})![/bold green]\n")
+        else:
+            console.print("[yellow]Batal mengubah API Key.[/yellow]\n")
 
 def handle_permission_settings_interactive(full_cfg, auto_approve_ref):
     if not sys.stdin.isatty():

@@ -150,7 +150,7 @@ def add_new_provider():
         console.print("[bold red]❌ Input tidak valid![/bold red]")
         return get_active_config()
 
-    api_key = Prompt.ask("Masukkan API Key", password=True)
+    api_key = Prompt.ask("Masukkan / Paste API Key").strip()
     model = Prompt.ask("Model", default=default_m)
 
     full_cfg = load_full_config()
