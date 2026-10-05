@@ -1,9 +1,61 @@
 import os
+import sys
 import json
+import time
 import requests
+import threading
+import termios
+import tty
+import select
 from ui import console
 from memory import load_memory
 from tools import TOOLS_SCHEMA
+
+class EscWatcher:
+    """Listener keyboard non-blocking untuk mendeteksi tombol ESC / Ctrl+C saat AI berjalan"""
+    def __init__(self):
+        self.stop_requested = threading.Event()
+        self._thread = None
+        self._running = False
+        self._old_settings = None
+
+    def start(self):
+        if not sys.stdin.isatty():
+            return
+        self._running = True
+        try:
+            fd = sys.stdin.fileno()
+            self._old_settings = termios.tcgetattr(fd)
+            tty.setcbreak(fd)
+            self._thread = threading.Thread(target=self._listen, daemon=True)
+            self._thread.start()
+        except Exception:
+            pass
+
+    def _listen(self):
+        try:
+            fd = sys.stdin.fileno()
+            while self._running and not self.stop_requested.is_set():
+                r, _, _ = select.select([fd], [], [], 0.05)
+                if r:
+                    try:
+                        ch = os.read(fd, 1)
+                        if ch in (b'\x1b', b'\x03'):
+                            self.stop_requested.set()
+                            break
+                    except Exception:
+                        break
+        except Exception:
+            pass
+
+    def stop(self):
+        self._running = False
+        if self._old_settings is not None:
+            try:
+                fd = sys.stdin.fileno()
+                termios.tcsetattr(fd, termios.TCSADRAIN, self._old_settings)
+            except Exception:
+                pass
 
 def build_system_prompt():
     memory = load_memory()
@@ -40,10 +92,47 @@ def call_ai(messages, config):
         "tool_choice": "auto"
     }
 
+    watcher = EscWatcher()
+    watcher.start()
+
+    session = requests.Session()
+    result_container = {"data": None, "error": None, "done": False}
+
+    def fetch_worker():
+        try:
+            resp = session.post(url, headers=headers, json=payload, timeout=90)
+            if resp.status_code == 200:
+                result_container["data"] = resp.json()
+            else:
+                result_container["error"] = f"HTTP {resp.status_code}: {resp.text}"
+        except Exception as e:
+            result_container["error"] = str(e)
+        finally:
+            result_container["done"] = True
+
+    worker_t = threading.Thread(target=fetch_worker, daemon=True)
+    worker_t.start()
+
     try:
-        resp = requests.post(url, headers=headers, json=payload, timeout=90)
-        resp.raise_for_status()
-        return resp.json()
-    except Exception as e:
-        console.print(f"[bold red]API Error:[/bold red] {str(e)}")
+        while not result_container["done"]:
+            if watcher.stop_requested.is_set():
+                session.close()
+                watcher.stop()
+                console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]")
+                return {"cancelled": True}
+            time.sleep(0.05)
+    finally:
+        watcher.stop()
+
+    if watcher.stop_requested.is_set():
+        console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]")
+        return {"cancelled": True}
+
+    if result_container["data"]:
+        return result_container["data"]
+    elif result_container["error"]:
+        if not watcher.stop_requested.is_set():
+            console.print(f"[bold red]API Error:[/bold red] {result_container['error']}")
         return None
+
+    return None

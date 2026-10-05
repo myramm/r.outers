@@ -12,35 +12,10 @@ PRESET_PROVIDERS = {
         "base_url": "https://router.clouvia.id/v1",
         "default_model": "free-model"
     },
-    "openrouter": {
-        "name": "OpenRouter (DeepSeek V3/R1, Claude, GPT, Gemini)",
-        "base_url": "https://openrouter.ai/api/v1",
-        "default_model": "deepseek/deepseek-chat"
-    },
-    "deepseek": {
-        "name": "DeepSeek Official",
-        "base_url": "https://api.deepseek.com",
-        "default_model": "deepseek-chat"
-    },
-    "groq": {
-        "name": "Groq Cloud (Ultra Fast Llama 3.3)",
-        "base_url": "https://api.groq.com/openai/v1",
-        "default_model": "llama-3.3-70b-versatile"
-    },
-    "openai": {
-        "name": "OpenAI Official (GPT-4o, o1, o3-mini)",
-        "base_url": "https://api.openai.com/v1",
-        "default_model": "gpt-4o-mini"
-    },
-    "ollama": {
-        "name": "Ollama (Local / Termux)",
-        "base_url": "http://localhost:11434/v1",
-        "default_model": "qwen2.5-coder"
-    },
-    "together": {
-        "name": "Together AI",
-        "base_url": "https://api.together.xyz/v1",
-        "default_model": "meta-llama/Llama-3.3-70B-Instruct-Turbo"
+    "atria": {
+        "name": "Atria ASI (Atria-Dawn-Preview)",
+        "base_url": "https://api.atria-asi.ai/v1",
+        "default_model": "Atria-Dawn-Preview"
     }
 }
 
@@ -109,14 +84,8 @@ def get_active_config():
     if not api_k:
         if active_key == "clouvia":
             api_k = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", ""))
-        elif active_key == "openrouter":
-            api_k = env_keys.get("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", ""))
-        elif active_key == "deepseek":
-            api_k = env_keys.get("DEEPSEEK_API_KEY", os.environ.get("DEEPSEEK_API_KEY", ""))
-        elif active_key == "groq":
-            api_k = env_keys.get("GROQ_API_KEY", os.environ.get("GROQ_API_KEY", ""))
-        elif active_key == "openai":
-            api_k = env_keys.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
+        elif active_key == "atria":
+            api_k = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
 
     return {
         "provider_id": active_key,
@@ -197,39 +166,97 @@ def switch_provider():
     if not providers:
         return add_new_provider()
 
-    console.print("\n[bold cyan]📡 Daftar Provider Tersimpan:[/bold cyan]")
+    if not sys.stdin.isatty():
+        return get_active_config()
+
     p_keys = list(providers.keys())
     active_key = full_cfg.get("active_provider")
+    selected = 0
+    for i, k in enumerate(p_keys):
+        if k == active_key:
+            selected = i
+            break
 
-    for idx, k in enumerate(p_keys, 1):
+    options = []
+    for k in p_keys:
         p = providers[k]
-        is_active = " [bold green](AKTIF)[/bold green]" if k == active_key else ""
-        console.print(f"  [bold yellow]{idx}[/bold yellow]. {p.get('name', k)} ({p.get('model')}){is_active}")
-    console.print(f"  [bold cyan]+[/bold cyan]. Tambah / Setup Provider Baru")
-    console.print(f"  [bold red]e / E[/bold red]. Batal / Kembali")
+        is_act = " (Aktif)" if k == active_key else ""
+        options.append({"id": k, "label": f"{p.get('name', k)} [{p.get('model')}]{is_act}"})
+    options.append({"id": "+", "label": "➕ Tambah Provider Baru"})
+    options.append({"id": "back", "label": "⬅️ Batal / Kembali"})
 
-    sel = Prompt.ask("\nPilih nomor provider (1-{}, +, e)".format(len(p_keys)), default="1").strip()
-    if sel.lower() == "e":
-        console.print("[yellow]Batal berganti provider.[/yellow]")
-        return get_active_config()
-    
-    if sel == "+":
-        return add_new_provider()
-    
+    fd = sys.stdin.fileno()
+    import termios, tty
+    old_settings = termios.tcgetattr(fd)
+
+    sys.stdout.write("\033[?1049h\033[?25l\033[H\033[2J")
+    sys.stdout.flush()
+
     try:
-        idx = int(sel) - 1
-        if 0 <= idx < len(p_keys):
-            target_key = p_keys[idx]
-            full_cfg["active_provider"] = target_key
-            save_full_config(full_cfg)
-            target = providers[target_key]
-            console.print(f"[bold green]✔ Berganti ke Provider: {target.get('name')} (Model: {target.get('model')})[/bold green]\n")
-            return get_active_config()
-        else:
-            console.print(f"[bold red]❌ Input tidak valid! Nomor harus antara 1 sampai {len(p_keys)}.[/bold red]")
-            return get_active_config()
-    except ValueError:
-        console.print(f"[bold red]❌ Input '{sel}' tidak valid![/bold red]")
+        tty.setraw(fd)
+        sys.stdout.write("\033[?7l")
+        sys.stdout.flush()
+
+        while True:
+            try:
+                term_cols = os.get_terminal_size().columns
+            except Exception:
+                term_cols = 50
+            width = max(34, min(term_cols - 2, 56))
+
+            lines = []
+            lines.append(f"\033[1;36m📡  Pilih Provider AI Aktif\033[0m{' ' * (width - 28)}\033[90m[Esc]\033[0m")
+            lines.append(f"\033[90m{'─' * width}\033[0m")
+            lines.append("")
+
+            for idx, opt in enumerate(options):
+                is_sel = (idx == selected)
+                pfx = "▸ " if is_sel else "  "
+                avail = width - 4
+                row_str = f"{pfx}{opt['label']}"
+                if is_sel:
+                    lines.append(f"\033[7m\033[1m {row_str:<{avail}} \033[0m")
+                else:
+                    lines.append(f"{pfx}\033[37m{opt['label']}\033[0m")
+
+            lines.append("")
+            lines.append(f"\033[90m{'─' * width}\033[0m")
+            lines.append(" \033[1;33m↑↓/Tab\033[0m \033[90mPilih\033[0m  \033[1;32mEnter\033[0m \033[90mAktifkan\033[0m  \033[90mEsc Kembali\033[0m")
+
+            out_buf = ["\033[H"]
+            for l in lines:
+                out_buf.append(f"\r\033[2K{l}\r\n")
+            out_buf.append("\r\033[J")
+            sys.stdout.write("".join(out_buf))
+            sys.stdout.flush()
+
+            from settings import read_key_raw_fd
+            k = read_key_raw_fd(fd)
+            if k in ('ESC', 'CTRL_C'):
+                return get_active_config()
+
+            elif k in ('UP', 'SHIFT_TAB'):
+                selected = (selected - 1) % len(options)
+            elif k in ('DOWN', 'TAB'):
+                selected = (selected + 1) % len(options)
+            elif k == 'ENTER':
+                chosen = options[selected]["id"]
+                break
+
+    finally:
+        sys.stdout.write("\033[?7h\033[?1049l\033[?25h")
+        sys.stdout.flush()
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    if chosen == "+":
+        return add_new_provider()
+    elif chosen == "back":
+        return get_active_config()
+    else:
+        full_cfg["active_provider"] = chosen
+        save_full_config(full_cfg)
+        target = providers[chosen]
+        console.print(f"[bold green]✔ Berganti ke Provider: {target.get('name')} (Model: {target.get('model')})[/bold green]\n")
         return get_active_config()
 
 def setup_initial_config():

@@ -116,14 +116,58 @@ def execute_tool(name, args, auto_approve=False):
             cmd = args.get("command", "")
             console.print(f"\n[bold yellow]⚡ Shell Command:[/bold yellow] [bold white]{cmd}[/bold white]")
             
-            if not auto_approve:
-                resp = Prompt.ask("[yellow]Jalankan? (y/n)[/yellow]", choices=["y", "n"], default="y")
+            from config import load_full_config, save_full_config
+            full_cfg = load_full_config()
+            is_always_allowed = auto_approve or (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
+
+            if not is_always_allowed:
+                console.print("[dim]Opsi: [y] Jalankan  [n] Tolak  [a] Selalu Izinkan (Always Allow)[/dim]")
+                resp = Prompt.ask("[yellow]Jalankan?[/yellow]", choices=["y", "n", "a", "always"], default="y").strip().lower()
                 if resp == "n":
                     return "Dibatalkan oleh pengguna."
+                elif resp in ("a", "always"):
+                    full_cfg["permission_mode"] = "always_allow"
+                    full_cfg["auto_approve"] = True
+                    save_full_config(full_cfg)
+                    console.print("[bold green]✔ Mode 'Selalu Izinkan' aktif. Perintah shell selanjutnya akan otomatis dijalankan tanpa konfirmasi.[/bold green]")
 
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
-            out = (res.stdout + "\n" + res.stderr).strip()
-            return f"Returncode: {res.returncode}\nOutput:\n{out}" if out else f"Returncode: {res.returncode}\n(No output)"
+            import time
+            from client import EscWatcher
+            watcher = EscWatcher()
+            watcher.start()
+
+            proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            stdout, stderr = "", ""
+            start_time = time.time()
+            cancelled = False
+            
+            try:
+                with console.status("[bold cyan]⏳ Menjalankan script / perintah...[/bold cyan] [dim](ESC: Stop)[/dim]") as status:
+                    while proc.poll() is None:
+                        if watcher.stop_requested.is_set():
+                            proc.kill()
+                            cancelled = True
+                            break
+                        elapsed = time.time() - start_time
+                        status.update(f"[bold cyan]⏳ Menjalankan...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]")
+                        time.sleep(0.1)
+
+                if cancelled:
+                    console.print("\n[bold yellow]⏹ Eksekusi shell dihentikan paksa oleh pengguna (ESC).[/bold yellow]")
+                    return "Eksekusi command dibatalkan oleh pengguna (ESC)."
+
+                stdout, stderr = proc.communicate()
+            finally:
+                watcher.stop()
+
+            elapsed = time.time() - start_time
+            if proc.returncode == 0:
+                console.print(f"[bold green]✔ Selesai[/bold green] [dim]({elapsed:.1f}s)[/dim]")
+            else:
+                console.print(f"[bold red]✘ Gagal (Exit code: {proc.returncode})[/bold red] [dim]({elapsed:.1f}s)[/dim]")
+
+            out = (stdout + "\n" + stderr).strip()
+            return f"Returncode: {proc.returncode}\nOutput:\n{out}" if out else f"Returncode: {proc.returncode}\n(No output)"
 
         elif name == "read_file":
             fp = args.get("filepath")
@@ -161,6 +205,7 @@ def execute_tool(name, args, auto_approve=False):
 
         elif name == "list_dir":
             d = args.get("directory", ".")
+            console.print(f"[dim cyan]📁 Memeriksa folder {d}...[/dim cyan]")
             files = []
             for root, dirs, f_list in os.walk(d):
                 dirs[:] = [dr for dr in dirs if dr not in ['.git', 'node_modules', '__pycache__', '.cache']]
@@ -175,7 +220,8 @@ def execute_tool(name, args, auto_approve=False):
             q = args.get("query")
             p = args.get("path", ".")
             cmd = f"grep -rnI --exclude-dir={{node_modules,.git,__pycache__}} '{q}' {p} | head -n 25"
-            res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            with console.status(f"[bold cyan]🔍 Mencari '{q}'...[/bold cyan]"):
+                res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
             return res.stdout if res.stdout else "Tidak ditemukan."
 
         elif name == "remember":

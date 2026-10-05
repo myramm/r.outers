@@ -11,55 +11,31 @@ from config import get_active_config, update_active_model, switch_provider, add_
 from memory import load_memory
 from tools import execute_tool
 from client import build_system_prompt, call_ai
+from selector import select_model_interactive
+from settings import show_settings_hub
+from slash_prompt import get_smart_input
 
 PROVIDER_MODELS = {
     "clouvia": {
         "name": "Clouvia Router (https://router.clouvia.id/v1)",
-        "models": ["free-model", "coding-high"]
-    },
-    "openrouter": {
-        "name": "OpenRouter (https://openrouter.ai/api/v1)",
         "models": [
-            "deepseek/deepseek-chat",
-            "deepseek/deepseek-r1",
-            "anthropic/claude-3.5-sonnet",
-            "openai/gpt-4o",
-            "openai/gpt-4o-mini",
-            "meta-llama/llama-3.3-70b-instruct",
-            "google/gemini-2.0-flash-exp:free"
+            "free-model",
+            "coding-high",
+            "claude-opus-5",
+            "claude-sonnet-5-thinking-agentic",
+            "gpt-6.1-sol",
+            "gpt-6-sol",
+            "gemini-3.8-flash-high",
+            "deepseek-v4-pro",
+            "qwen-3.8-max-thinking-agentic",
+            "kimi-k3",
+            "glm5.3-thinking-agentic"
         ]
     },
-    "groq": {
-        "name": "Groq Cloud (https://api.groq.com/openai/v1)",
+    "atria": {
+        "name": "Atria ASI (https://api.atria-asi.ai/v1)",
         "models": [
-            "llama-3.3-70b-versatile",
-            "llama-3.1-8b-instant",
-            "mixtral-8x7b-32768",
-            "deepseek-r1-distill-llama-70b"
-        ]
-    },
-    "deepseek": {
-        "name": "DeepSeek Official (https://api.deepseek.com)",
-        "models": [
-            "deepseek-chat",
-            "deepseek-reasoner"
-        ]
-    },
-    "openai": {
-        "name": "OpenAI Official (https://api.openai.com/v1)",
-        "models": [
-            "gpt-4o",
-            "gpt-4o-mini",
-            "o1-preview",
-            "o3-mini"
-        ]
-    },
-    "ollama": {
-        "name": "Ollama Local (http://localhost:11434/v1)",
-        "models": [
-            "qwen2.5-coder",
-            "llama3.2",
-            "deepseek-r1:7b"
+            "Atria-Dawn-Preview"
         ]
     }
 }
@@ -138,18 +114,21 @@ def handle_model_menu(config):
 
 def main():
     show_banner()
+    full_cfg = load_full_config()
     config = get_active_config()
-    auto_approve = False
+    auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
 
     messages = [{"role": "system", "content": build_system_prompt()}]
 
     while True:
         try:
-            status_tag = "[bold magenta](YOLO)[/bold magenta] " if auto_approve else ""
+            status_str = "\033[1;35m(YOLO)\033[0m " if auto_approve else ""
             prov_name = config.get('provider_id', 'ai')
             curr_model = config.get('model', 'model')
-            model_tag = f"[dim]({prov_name}:{curr_model})[/dim] "
-            user_input = Prompt.ask(f"\n{status_tag}{model_tag}[bold cyan]r.outers >[/bold cyan]")
+            model_str = f"\033[90m({prov_name}:{curr_model})\033[0m "
+            prompt_str = f"{status_str}{model_str}\033[1;36mr.outers >\033[0m"
+            console.print("")
+            user_input = get_smart_input(prompt_str)
         except (KeyboardInterrupt, EOFError):
             console.print("\n[yellow]Keluar...[/yellow]")
             break
@@ -172,33 +151,43 @@ def main():
                 continue
             elif cmd_lower == "/yolo":
                 auto_approve = not auto_approve
+                cfg_current = load_full_config()
+                cfg_current["auto_approve"] = auto_approve
+                cfg_current["permission_mode"] = "always_allow" if auto_approve else "ask"
+                save_full_config(cfg_current)
                 console.print(f"[bold magenta]YOLO Mode (Auto-Approve): {auto_approve}[/bold magenta]")
                 continue
-            elif cmd_lower == "/model":
+            elif cmd_lower in ["/model", "/m"]:
                 if len(parts) > 1 and parts[1].strip():
                     new_m = parts[1].strip()
                     update_active_model(new_m)
                     config["model"] = new_m
                     console.print(f"[bold green]✔ Model diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
                 else:
-                    config = handle_model_menu(config)
+                    config = select_model_interactive(config)
                 continue
-            elif cmd_lower in ["/provider", "/providers"]:
+            elif cmd_lower in ["/provider", "/providers", "/p"]:
                 config = switch_provider()
                 continue
             elif cmd_lower in ["/list", "/models"]:
                 show_all_providers_and_models(config)
+                continue
+            elif cmd_lower in ["/setup", "/config", "/pengaturan", "/settings"]:
+                auto_ref = [auto_approve]
+                config = show_settings_hub(config, auto_ref)
+                auto_approve = auto_ref[0]
                 continue
             elif cmd_lower == "/memory":
                 console.print(Panel(json.dumps(load_memory(), indent=2), title="🧠 r.outers Memory"))
                 continue
             elif cmd_lower == "/help":
                 console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /model coding-high)
-• [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API
-• [bold cyan]/list[/bold cyan]               : Tabel lengkap semua Provider & Model
+• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim] : Pusat Pengaturan (API Key, Model, Provider, Reset)
+• [bold cyan]/model[/bold cyan] [nama]       : Pilih / ganti model AI (atau ketik /m)
+• [bold cyan]/provider[/bold cyan]           : Pindah / Tambah Provider API (atau /p)
+• [bold cyan]/list[/bold cyan]               : Tabel daftar Provider & Model AI
 • [bold cyan]/yolo[/bold cyan]               : Toggle Mode Auto-Pilot (tanpa konfirmasi manual y/n)
-• [bold cyan]/memory[/bold cyan]             : Lihat memori AI
+• [bold cyan]/memory[/bold cyan]             : Lihat memori agent
 • [bold cyan]/clear[/bold cyan]              : Bersihkan riwayat chat sesi ini
 • [bold cyan]/exit[/bold cyan]               : Keluar
 """, title="Bantuan r.outers"))
@@ -207,10 +196,10 @@ def main():
         messages.append({"role": "user", "content": user_input})
 
         while True:
-            with console.status(f"[bold cyan]r.outers ({config.get('provider_id')}:{config.get('model')}) sedang memproses...[/bold cyan]"):
+            with console.status(f"[bold cyan]r.outers ({config.get('provider_id')}:{config.get('model')}) sedang memproses...[/bold cyan] [dim](ESC: Stop)[/dim]"):
                 reply = call_ai(messages, config)
 
-            if not reply:
+            if not reply or reply.get("cancelled"):
                 break
 
             msg = reply["choices"][0]["message"]

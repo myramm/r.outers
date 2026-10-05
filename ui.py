@@ -1,16 +1,21 @@
 from rich.console import Console
 from rich.panel import Panel
 from rich.markdown import Markdown
+from rich.text import Text
 
 console = Console()
 
 def show_banner():
-    console.print(Panel.fit(
-        "[bold cyan]⚡ r.outers AI AGENT (TERMUX) ⚡[/bold cyan]\n"
-        "[dim]Full Autonomous Coding • NPM / PKG / PIP • Memory • Auto-Fix[/dim]\n"
-        "Perintah: [bold green]/help[/bold green] [dim]|[/dim] [bold yellow]/yolo[/bold yellow] [dim]|[/dim] [bold cyan]/memory[/bold cyan] [dim]|[/dim] [bold red]/exit[/bold red]",
-        border_style="cyan"
-    ))
+    art_text = """  ____  _____ ____ 
+ |  _ \|_   _/ ___|
+ | |_) | | | \___ \\
+ |  _ <  | |  ___) |
+ |_| \_\ |_| |____/ """
+
+    t = Text(art_text, style="bold cyan")
+    console.print(t)
+    console.print("\n  [bold white]RTS • AI CODING CLI[/bold white]\n  [bold green]TERMUX[/bold green]  [dim]v1.0.0[/dim]")
+    console.print("  [dim]Ketik [bold cyan]/[/bold cyan] untuk menu perintah • [bold cyan]/setup[/bold cyan] pengaturan • [bold green]/model[/bold green] ganti model[/dim]\n")
 
 def print_markdown(content):
     console.print("\n[bold green]r.outers:[/bold green]")
