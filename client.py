@@ -83,11 +83,13 @@ def call_ai(messages, config):
 
     def fetch_worker():
         try:
-            resp = session.post(url, headers=headers, json=payload, timeout=180)
+            resp = session.post(url, headers=headers, json=payload, timeout=60)
             if resp.status_code == 200:
                 result_container["data"] = resp.json()
             else:
                 result_container["error"] = f"HTTP {resp.status_code}: {resp.text}"
+        except requests.exceptions.Timeout:
+            result_container["error"] = "Permintaan ke server AI timeout (60 detik)."
         except Exception as e:
             result_container["error"] = str(e)
         finally:
@@ -101,21 +103,21 @@ def call_ai(messages, config):
             if watcher.stop_requested.is_set():
                 session.close()
                 watcher.stop()
-                console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]")
+                console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]\n")
                 return {"cancelled": True}
             time.sleep(0.05)
     finally:
         watcher.stop()
 
     if watcher.stop_requested.is_set():
-        console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]")
+        console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]\n")
         return {"cancelled": True}
 
     if result_container["data"]:
         return result_container["data"]
     elif result_container["error"]:
         if not watcher.stop_requested.is_set():
-            console.print(f"[bold red]API Error:[/bold red] {result_container['error']}")
+            console.print(f"[bold red]API Error:[/bold red] {result_container['error']}\n")
         return None
 
     return None

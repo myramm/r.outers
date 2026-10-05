@@ -334,13 +334,17 @@ def main():
         messages.append({"role": "user", "content": user_input})
 
         # Task Execution Lifecycle (RUNNING -> DONE / CANCELLED / ERROR -> IDLE)
-        while True:
+        turn_count = 0
+        max_tool_turns = 15
+
+        while turn_count < max_tool_turns:
+            turn_count += 1
             reply = None
             try:
                 with console.status(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"):
                     reply = call_ai(messages, config)
             except Exception as e:
-                console.print(f"[bold red]✘ Error calling AI:[/bold red] {e}")
+                console.print(f"[bold red]✘ Error calling AI:[/bold red] {e}\n")
                 break
 
             if not reply or reply.get("cancelled"):
