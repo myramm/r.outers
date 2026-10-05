@@ -190,6 +190,174 @@ def format_model_name(model_id):
             words.append(w.capitalize())
     return " ".join(words)
 
+def handle_command(user_input, config, messages, auto_approve):
+    cmd_raw = user_input.strip().lower()
+
+    # Force Continue / Resume Commands (gas, lanjut, continue)
+    if cmd_raw in ["gas", "lanjut", "continue", "/gas", "/lanjut", "/continue"]:
+        console.print("\n[bold yellow]⚡ RTS >[/bold yellow] [bold green]Continuing task / Resuming agent...[/bold green]\n")
+        user_input = "Lanjutkan task dan pekerjaan sebelumnya sampai tuntas. Jalankan semua tool yang diperlukan (menulis file, eksekusi bash, pengujian) tanpa berhenti sampai selesai."
+
+    # Status Command
+    elif cmd_raw in ["status", "/status"]:
+        from queue_manager import has_queued_messages
+        active_prov = config.get("provider_id", "clouvia")
+        curr_model = config.get('model', 'free-model')
+        queue_status = "[bold green]1+ pesan antrean menunggu[/bold green]" if has_queued_messages() else "[dim]Kosong (Ready)[/dim]"
+        console.print(Panel(f"""[bold]Informasi Status RTS Agent:[/bold]
+• Model Aktif    : [bold yellow]{curr_model}[/bold yellow]
+• Provider API   : [bold cyan]{active_prov}[/bold cyan]
+• Mode Izin      : [{'green' if auto_approve else 'yellow'}]{'Always Allow (Auto)' if auto_approve else 'Ask Approval'}[/]
+• Antrean Pesan  : {queue_status}
+• Status Eksekusi: [bold green]Ready / Standby[/bold green]
+""", title="⚡ RTS Status"))
+        return config, auto_approve
+
+    # Stop / Cancel Command
+    elif cmd_raw in ["stop", "cancel", "batal", "/stop", "/cancel"]:
+        console.print("\n[bold yellow]⚡ RTS > Task stopped / reset.[/bold yellow]\n")
+        return config, auto_approve
+
+    # Slash Commands
+    elif user_input.startswith("/"):
+        parts = user_input.strip().split(maxsplit=1)
+        cmd_lower = parts[0].lower()
+        
+        if cmd_lower in ["/clear", "/cls"]:
+            messages.clear()
+            messages.append({"role": "system", "content": build_system_prompt()})
+            sys.stdout.write("\033[H\033[2J\033[3J")
+            sys.stdout.flush()
+            os.system("clear")
+            show_banner()
+            console.print("[bold green]✔ Riwayat percakapan & layar dibersihkan. Konteks AI telah direfresh.[/bold green]\n")
+            return config, auto_approve
+        elif cmd_lower in ["/style", "/styles", "/theme", "/themes", "/prompt-style"]:
+            from styles import select_style_and_theme_interactive
+            select_style_and_theme_interactive()
+            return config, auto_approve
+        elif cmd_lower in ["/model", "/m"]:
+            if len(parts) > 1 and parts[1].strip():
+                new_m = parts[1].strip()
+                update_active_model(new_m)
+                config["model"] = new_m
+                console.print(f"[bold green]✔ Model diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]\n")
+            else:
+                config = select_model_interactive(config)
+            return config, auto_approve
+        elif cmd_lower in ["/provider", "/providers", "/p"]:
+            config = switch_provider()
+            return config, auto_approve
+        elif cmd_lower in ["/list", "/models"]:
+            show_all_providers_and_models(config)
+            return config, auto_approve
+        elif cmd_lower in ["/skills", "/skill"]:
+            from skill_manager import show_skills_interactive_menu, install_skill_from_url
+            if len(parts) > 1 and parts[1].strip():
+                sub = parts[1].strip()
+                if sub.lower().startswith("add "):
+                    install_skill_from_url(sub[4:].strip())
+                elif sub.lower() == "list":
+                    show_skills_table()
+                else:
+                    install_skill_from_url(sub)
+            else:
+                show_skills_interactive_menu()
+            return config, auto_approve
+        elif cmd_lower in ["/add-skill", "/addskill"]:
+            from skill_manager import install_skill_from_url
+            if len(parts) > 1 and parts[1].strip():
+                install_skill_from_url(parts[1].strip())
+            else:
+                url = Prompt.ask("\n[bold cyan]Masukkan URL GitHub / repo skill (contoh: https://github.com/owner/repo)[/bold cyan]").strip()
+                if url:
+                    install_skill_from_url(url)
+            return config, auto_approve
+        elif cmd_lower in ["/setup", "/config", "/pengaturan", "/settings"]:
+            auto_ref = [auto_approve]
+            config = show_settings_hub(config, auto_ref)
+            auto_approve = auto_ref[0]
+            return config, auto_approve
+        elif cmd_lower == "/memory":
+            console.print(Panel(json.dumps(load_memory(), indent=2), title="🧠 r.outers Memory"))
+            return config, auto_approve
+        elif cmd_lower == "/help":
+            console.print(Panel("""[bold]Perintah Tersedia:[/bold]
+• [bold yellow]gas[/bold yellow] [dim](atau /gas, lanjut)[/dim]   : Force Continue / Paksa AI melanjutkan task yang berjalan
+• [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif & antrean pesan
+• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim]   : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
+• [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]    : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)
+• [bold cyan]/model[/bold cyan] [nama]         : Pilih / ganti model AI (atau ketik /m)
+• [bold cyan]/provider[/bold cyan]             : Pindah / Tambah Provider API (atau /p)
+• [bold cyan]/skills[/bold cyan]               : Pusat Manajemen Skill (Lihat, Tambah dari GitHub, Hapus)
+• [bold cyan]/add-skill[/bold cyan] [url]       : Download & pasang skill langsung dari URL GitHub
+• [bold cyan]/list[/bold cyan]                 : Tabel daftar Provider & Model AI
+• [bold cyan]/memory[/bold cyan]               : Lihat memori agent
+• [bold cyan]/clear[/bold cyan]                : Bersihkan riwayat chat sesi ini
+• [bold cyan]/exit[/bold cyan]                 : Keluar
+""", title="Bantuan r.outers"))
+            return config, auto_approve
+
+    messages.append({"role": "user", "content": user_input})
+
+    # Task Execution Lifecycle (RUNNING -> DONE / CANCELLED / ERROR -> IDLE)
+    turn_count = 0
+    max_tool_turns = 15
+
+    while turn_count < max_tool_turns:
+        turn_count += 1
+        reply = None
+        try:
+            with console.status(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"):
+                reply = call_ai(messages, config)
+        except Exception as e:
+            console.print(f"[bold red]✘ Error calling AI:[/bold red] {e}\n")
+            break
+
+        if not reply or reply.get("cancelled"):
+            break
+
+        choices = reply.get("choices")
+        if not choices or not isinstance(choices, list) or len(choices) == 0:
+            break
+
+        msg = choices[0].get("message", {})
+        if not msg:
+            break
+
+        messages.append(msg)
+
+        if msg.get("tool_calls"):
+            for tool in msg["tool_calls"]:
+                fn_name = tool.get("function", {}).get("name", "")
+                try:
+                    fn_args = json.loads(tool.get("function", {}).get("arguments", "{}"))
+                except Exception:
+                    fn_args = {}
+
+                try:
+                    tool_res = execute_tool(fn_name, fn_args, auto_approve=auto_approve)
+                except Exception as e:
+                    tool_res = f"Tool execution error: {e}"
+                
+                messages.append({
+                    "role": "tool",
+                    "tool_call_id": tool.get("id", ""),
+                    "name": fn_name,
+                    "content": str(tool_res)
+                })
+            continue
+        else:
+            content = msg.get("content") or ""
+            reasoning = msg.get("reasoning_content") or ""
+            if content:
+                print_markdown(content)
+            elif reasoning:
+                print_markdown(f"*[dim]Alur Berpikir AI / Reasoning:[/dim]*\n\n{reasoning}")
+            break
+
+    return config, auto_approve
+
 def main():
     show_banner()
     full_cfg = load_full_config()
@@ -204,6 +372,7 @@ def main():
         active_prov = full_cfg.get("active_provider", "clouvia")
         curr_model = config.get('model', 'free-model')
 
+        # 1. IDLE: Check queued message or get interactive input
         queued_msg = get_next_queued_message()
         if queued_msg:
             user_input = queued_msg
@@ -219,175 +388,20 @@ def main():
                 console.print("\n[yellow]Keluar...[/yellow]")
                 break
             except Exception as e:
-                console.print(f"[bold red]Input Error:[/bold red] {e}")
+                console.print(f"[bold red]Input Error:[/bold red] {e}\n")
                 continue
 
         if not user_input or not user_input.strip():
             continue
 
-        cmd_raw = user_input.strip().lower()
+        if user_input.strip().lower() in ["/exit", "/quit"]:
+            break
 
-        # Force Continue / Resume Commands (gas, lanjut, continue)
-        if cmd_raw in ["gas", "lanjut", "continue", "/gas", "/lanjut", "/continue"]:
-            console.print("\n[bold yellow]⚡ RTS >[/bold yellow] [bold green]Continuing task / Resuming agent...[/bold green]\n")
-            user_input = "Lanjutkan task dan pekerjaan sebelumnya sampai tuntas. Jalankan semua tool yang diperlukan (menulis file, eksekusi bash, pengujian) tanpa berhenti sampai selesai."
-
-        # Status Command
-        elif cmd_raw in ["status", "/status"]:
-            from queue_manager import has_queued_messages
-            queue_status = "[bold green]1+ pesan antrean menunggu[/bold green]" if has_queued_messages() else "[dim]Kosong (Ready)[/dim]"
-            console.print(Panel(f"""[bold]Informasi Status RTS Agent:[/bold]
-• Model Aktif    : [bold yellow]{curr_model}[/bold yellow]
-• Provider API   : [bold cyan]{active_prov}[/bold cyan]
-• Mode Izin      : [{'green' if auto_approve else 'yellow'}]{'Always Allow (Auto)' if auto_approve else 'Ask Approval'}[/]
-• Antrean Pesan  : {queue_status}
-• Status Eksekusi: [bold green]Ready / Standby[/bold green]
-""", title="⚡ RTS Status"))
-            continue
-
-        # Stop / Cancel Command
-        elif cmd_raw in ["stop", "cancel", "batal", "/stop", "/cancel"]:
-            console.print("\n[bold yellow]⚡ RTS > Task stopped / reset.[/bold yellow]\n")
-            continue
-
-        # Slash Commands
-        elif user_input.startswith("/"):
-            parts = user_input.strip().split(maxsplit=1)
-            cmd_lower = parts[0].lower()
-            
-            if cmd_lower in ["/exit", "/quit"]:
-                break
-            elif cmd_lower in ["/clear", "/cls"]:
-                messages = [{"role": "system", "content": build_system_prompt()}]
-                sys.stdout.write("\033[H\033[2J\033[3J")
-                sys.stdout.flush()
-                os.system("clear")
-                show_banner()
-                console.print("[bold green]✔ Riwayat percakapan & layar dibersihkan. Konteks AI telah direfresh.[/bold green]")
-                continue
-            elif cmd_lower in ["/style", "/styles", "/theme", "/themes", "/prompt-style"]:
-                from styles import select_style_and_theme_interactive
-                select_style_and_theme_interactive()
-                continue
-            elif cmd_lower in ["/model", "/m"]:
-                if len(parts) > 1 and parts[1].strip():
-                    new_m = parts[1].strip()
-                    update_active_model(new_m)
-                    config["model"] = new_m
-                    console.print(f"[bold green]✔ Model diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
-                else:
-                    config = select_model_interactive(config)
-                continue
-            elif cmd_lower in ["/provider", "/providers", "/p"]:
-                config = switch_provider()
-                continue
-            elif cmd_lower in ["/list", "/models"]:
-                show_all_providers_and_models(config)
-                continue
-            elif cmd_lower in ["/skills", "/skill"]:
-                from skill_manager import show_skills_interactive_menu, install_skill_from_url
-                if len(parts) > 1 and parts[1].strip():
-                    sub = parts[1].strip()
-                    if sub.lower().startswith("add "):
-                        install_skill_from_url(sub[4:].strip())
-                    elif sub.lower() == "list":
-                        show_skills_table()
-                    else:
-                        install_skill_from_url(sub)
-                else:
-                    show_skills_interactive_menu()
-                continue
-            elif cmd_lower in ["/add-skill", "/addskill"]:
-                from skill_manager import install_skill_from_url
-                if len(parts) > 1 and parts[1].strip():
-                    install_skill_from_url(parts[1].strip())
-                else:
-                    url = Prompt.ask("\n[bold cyan]Masukkan URL GitHub / repo skill (contoh: https://github.com/owner/repo)[/bold cyan]").strip()
-                    if url:
-                        install_skill_from_url(url)
-                continue
-            elif cmd_lower in ["/setup", "/config", "/pengaturan", "/settings"]:
-                auto_ref = [auto_approve]
-                config = show_settings_hub(config, auto_ref)
-                auto_approve = auto_ref[0]
-                continue
-            elif cmd_lower == "/memory":
-                console.print(Panel(json.dumps(load_memory(), indent=2), title="🧠 r.outers Memory"))
-                continue
-            elif cmd_lower == "/help":
-                console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold yellow]gas[/bold yellow] [dim](atau /gas, lanjut)[/dim]   : Force Continue / Paksa AI melanjutkan task yang berjalan
-• [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif & antrean pesan
-• [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim]   : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
-• [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]    : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)
-• [bold cyan]/model[/bold cyan] [nama]         : Pilih / ganti model AI (atau ketik /m)
-• [bold cyan]/provider[/bold cyan]             : Pindah / Tambah Provider API (atau /p)
-• [bold cyan]/skills[/bold cyan]               : Pusat Manajemen Skill (Lihat, Tambah dari GitHub, Hapus)
-• [bold cyan]/add-skill[/bold cyan] [url]       : Download & pasang skill langsung dari URL GitHub
-• [bold cyan]/list[/bold cyan]                 : Tabel daftar Provider & Model AI
-• [bold cyan]/memory[/bold cyan]               : Lihat memori agent
-• [bold cyan]/clear[/bold cyan]                : Bersihkan riwayat chat sesi ini
-• [bold cyan]/exit[/bold cyan]                 : Keluar
-""", title="Bantuan r.outers"))
-                continue
-
-        messages.append({"role": "user", "content": user_input})
-
-        # Task Execution Lifecycle (RUNNING -> DONE / CANCELLED / ERROR -> IDLE)
-        turn_count = 0
-        max_tool_turns = 15
-
-        while turn_count < max_tool_turns:
-            turn_count += 1
-            reply = None
-            try:
-                with console.status(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"):
-                    reply = call_ai(messages, config)
-            except Exception as e:
-                console.print(f"[bold red]✘ Error calling AI:[/bold red] {e}\n")
-                break
-
-            if not reply or reply.get("cancelled"):
-                break
-
-            choices = reply.get("choices")
-            if not choices or not isinstance(choices, list) or len(choices) == 0:
-                break
-
-            msg = choices[0].get("message", {})
-            if not msg:
-                break
-
-            messages.append(msg)
-
-            if msg.get("tool_calls"):
-                for tool in msg["tool_calls"]:
-                    fn_name = tool.get("function", {}).get("name", "")
-                    try:
-                        fn_args = json.loads(tool.get("function", {}).get("arguments", "{}"))
-                    except Exception:
-                        fn_args = {}
-
-                    try:
-                        tool_res = execute_tool(fn_name, fn_args, auto_approve=auto_approve)
-                    except Exception as e:
-                        tool_res = f"Tool execution error: {e}"
-                    
-                    messages.append({
-                        "role": "tool",
-                        "tool_call_id": tool.get("id", ""),
-                        "name": fn_name,
-                        "content": str(tool_res)
-                    })
-                continue
-            else:
-                content = msg.get("content") or ""
-                reasoning = msg.get("reasoning_content") or ""
-                if content:
-                    print_markdown(content)
-                elif reasoning:
-                    print_markdown(f"*[dim]Alur Berpikir AI / Reasoning:[/dim]*\n\n{reasoning}")
-                break
+        # 2. RUNNING: Execute command or AI turn safely
+        try:
+            config, auto_approve = handle_command(user_input, config, messages, auto_approve)
+        except Exception as e:
+            console.print(f"[bold red]Execution Error:[/bold red] {e}\n")
 
 if __name__ == "__main__":
     main()
