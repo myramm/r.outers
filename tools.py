@@ -1,0 +1,194 @@
+import os
+import subprocess
+from rich.prompt import Prompt
+from ui import console
+from memory import save_global_memory, save_project_memory
+
+TOOLS_SCHEMA = [
+    {
+        "type": "function",
+        "function": {
+            "name": "execute_bash",
+            "description": "Menjalankan perintah bash di Termux (pkg install, npm, pip, git, node, python, dll)",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "command": {"type": "string", "description": "Perintah bash yang akan dijalankan"}
+                },
+                "required": ["command"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "read_file",
+            "description": "Membaca isi file teks atau kode",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Path file"}
+                },
+                "required": ["filepath"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "write_file",
+            "description": "Membuat atau menimpa file dengan kode lengkap",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Path tujuan file"},
+                    "content": {"type": "string", "description": "Konten file lengkap"}
+                },
+                "required": ["filepath", "content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "edit_file",
+            "description": "Mengganti blok teks lama dengan blok teks baru pada file",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "filepath": {"type": "string", "description": "Path file"},
+                    "old_content": {"type": "string", "description": "Teks lama yang diganti"},
+                    "new_content": {"type": "string", "description": "Teks baru pengganti"}
+                },
+                "required": ["filepath", "old_content", "new_content"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "list_dir",
+            "description": "Melihat file dan folder dalam proyek",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "directory": {"type": "string", "description": "Direktori (default: '.')"}
+                }
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "search_code",
+            "description": "Mencari keyword/string di file proyek (grep)",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "query": {"type": "string", "description": "Kata kunci pencarian"},
+                    "path": {"type": "string", "description": "Direktori pencarian (default: '.')"}
+                },
+                "required": ["query"]
+            }
+        }
+    },
+    {
+        "type": "function",
+        "function": {
+            "name": "remember",
+            "description": "Menyimpan preferensi/informasi penting ke memori r.outers",
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "scope": {"type": "string", "enum": ["global", "project"]},
+                    "key": {"type": "string"},
+                    "value": {"type": "string"}
+                },
+                "required": ["scope", "key", "value"]
+            }
+        }
+    }
+]
+
+def execute_tool(name, args, auto_approve=False):
+    try:
+        if name == "execute_bash":
+            cmd = args.get("command", "")
+            console.print(f"\n[bold yellow]⚡ Shell Command:[/bold yellow] [bold white]{cmd}[/bold white]")
+            
+            if not auto_approve:
+                resp = Prompt.ask("[yellow]Jalankan? (y/n)[/yellow]", choices=["y", "n"], default="y")
+                if resp == "n":
+                    return "Dibatalkan oleh pengguna."
+
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True, timeout=180)
+            out = (res.stdout + "\n" + res.stderr).strip()
+            return f"Returncode: {res.returncode}\nOutput:\n{out}" if out else f"Returncode: {res.returncode}\n(No output)"
+
+        elif name == "read_file":
+            fp = args.get("filepath")
+            if not os.path.exists(fp):
+                return f"Error: File '{fp}' tidak ditemukan."
+            with open(fp, "r", encoding="utf-8", errors="ignore") as f:
+                content = f.read()
+            console.print(f"[dim cyan]📖 Membaca {fp}[/dim cyan]")
+            return content
+
+        elif name == "write_file":
+            fp = args.get("filepath")
+            content = args.get("content", "")
+            os.makedirs(os.path.dirname(os.path.abspath(fp)), exist_ok=True)
+            with open(fp, "w", encoding="utf-8") as f:
+                f.write(content)
+            console.print(f"[bold green]✔ File ditulis: {fp}[/bold green]")
+            return f"Sukses menulis {fp}"
+
+        elif name == "edit_file":
+            fp = args.get("filepath")
+            old_c = args.get("old_content")
+            new_c = args.get("new_content")
+            if not os.path.exists(fp):
+                return f"Error: File '{fp}' tidak ditemukan."
+            with open(fp, "r", encoding="utf-8") as f:
+                data = f.read()
+            if old_c not in data:
+                return "Error: old_content tidak cocok dengan isi file."
+            data = data.replace(old_c, new_c, 1)
+            with open(fp, "w", encoding="utf-8") as f:
+                f.write(data)
+            console.print(f"[bold green]✔ File diedit: {fp}[/bold green]")
+            return f"Sukses mengupdate {fp}"
+
+        elif name == "list_dir":
+            d = args.get("directory", ".")
+            files = []
+            for root, dirs, f_list in os.walk(d):
+                dirs[:] = [dr for dr in dirs if dr not in ['.git', 'node_modules', '__pycache__', '.cache']]
+                for f in f_list:
+                    files.append(os.path.relpath(os.path.join(root, f), d))
+                if len(files) > 80:
+                    files.append("...(daftar dipotong)")
+                    break
+            return "\n".join(files) if files else "(Direktori kosong)"
+
+        elif name == "search_code":
+            q = args.get("query")
+            p = args.get("path", ".")
+            cmd = f"grep -rnI --exclude-dir={{node_modules,.git,__pycache__}} '{q}' {p} | head -n 25"
+            res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
+            return res.stdout if res.stdout else "Tidak ditemukan."
+
+        elif name == "remember":
+            scope = args.get("scope", "global")
+            key, val = args.get("key"), args.get("value")
+            if scope == "global":
+                save_global_memory(key, val)
+            else:
+                save_project_memory(key, val)
+            console.print(f"[magenta]🧠 Memory [{scope}]: {key} = {val}[/magenta]")
+            return f"Tersimpan di memory {scope}."
+
+    except Exception as e:
+        return f"Error tool '{name}': {str(e)}"
+
+    return "Tool tidak dikenal."

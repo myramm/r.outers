@@ -1,0 +1,5 @@
+__pycache__/
+*.pyc
+.routers_config.json
+.routers_project_memory.json
+*.log
