@@ -183,11 +183,13 @@ def main():
             
             if cmd_lower in ["/exit", "/quit"]:
                 break
-            elif cmd_lower == "/clear":
+            elif cmd_lower in ["/clear", "/cls"]:
                 messages = [{"role": "system", "content": build_system_prompt()}]
+                sys.stdout.write("\033[H\033[2J\033[3J")
+                sys.stdout.flush()
                 os.system("clear")
                 show_banner()
-                console.print("[green]Chat history dibersihkan & context direfresh.[/green]")
+                console.print("[bold green]✔ Riwayat percakapan & layar dibersihkan. Konteks AI telah direfresh.[/bold green]")
                 continue
             elif cmd_lower in ["/model", "/m"]:
                 if len(parts) > 1 and parts[1].strip():

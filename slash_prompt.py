@@ -13,7 +13,7 @@ SLASH_COMMANDS = [
     {"cmd": "/add-skill", "desc": "Pasang skill baru dari URL GitHub / repo"},
     {"cmd": "/memory", "desc": "Lihat dan kelola memori tersimpan"},
     {"cmd": "/list", "desc": "Tabel daftar Provider dan Model AI"},
-    {"cmd": "/clear", "desc": "Bersihkan riwayat chat sesi ini"},
+    {"cmd": "/clear", "desc": "Bersihkan riwayat chat & reset tampilan layar (/cls)"},
     {"cmd": "/help", "desc": "Tampilkan panduan bantuan r.outers"},
     {"cmd": "/exit", "desc": "Keluar dari r.outers (/quit)"},
 ]
