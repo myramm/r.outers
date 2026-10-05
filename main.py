@@ -308,8 +308,7 @@ def handle_command(user_input, config, messages, auto_approve):
         turn_count += 1
         reply = None
         try:
-            with console.status(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"):
-                reply = call_ai(messages, config)
+            reply = call_ai(messages, config)
         except Exception as e:
             console.print(f"[bold red]✘ Error calling AI:[/bold red] {e}\n")
             break

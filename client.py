@@ -76,7 +76,6 @@ def call_ai(messages, config):
     }
 
     watcher = AsyncInputQueueWatcher()
-    watcher.start()
 
     session = requests.Session()
     result_container = {"data": None, "error": None, "done": False}
@@ -99,13 +98,24 @@ def call_ai(messages, config):
     worker_t.start()
 
     try:
-        while not result_container["done"]:
-            if watcher.stop_requested.is_set():
-                session.close()
-                watcher.stop()
-                console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]\n")
-                return {"cancelled": True}
-            time.sleep(0.05)
+        with console.status("[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]") as status:
+            def update_thinking_status():
+                txt = watcher.get_buffer_text()
+                if txt:
+                    status.update(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]\n  [bold cyan]r.outers[/bold cyan] [dim]>[/dim] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                else:
+                    status.update("[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]")
+
+            watcher.on_change = update_thinking_status
+            watcher.start()
+
+            while not result_container["done"]:
+                if watcher.stop_requested.is_set():
+                    session.close()
+                    console.print("\n[bold yellow]⏹ Proses dihentikan oleh pengguna (ESC ditekan).[/bold yellow]\n")
+                    return {"cancelled": True}
+                update_thinking_status()
+                time.sleep(0.08)
     finally:
         watcher.stop()
 

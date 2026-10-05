@@ -365,23 +365,32 @@ def execute_tool(name, args, auto_approve=False):
             import time
             from queue_manager import AsyncInputQueueWatcher
             watcher = AsyncInputQueueWatcher()
-            watcher.start()
 
-            proc = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            proc = subprocess.Popen(cmd, shell=True, stdin=subprocess.DEVNULL, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             stdout, stderr = "", ""
             start_time = time.time()
             cancelled = False
             
             try:
                 with console.status(f"[bold cyan]↳ Running...[/bold cyan] [dim](0.0s | ESC: Stop | Ketik 'gas')[/dim]") as status:
+                    def update_bash_status():
+                        elapsed = time.time() - start_time
+                        txt = watcher.get_buffer_text()
+                        if txt:
+                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]\n  [bold cyan]r.outers[/bold cyan] [dim]>[/dim] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                        else:
+                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]")
+
+                    watcher.on_change = update_bash_status
+                    watcher.start()
+
                     while proc.poll() is None:
                         if watcher.stop_requested.is_set():
                             proc.kill()
                             cancelled = True
                             break
-                        elapsed = time.time() - start_time
-                        status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]")
-                        time.sleep(0.1)
+                        update_bash_status()
+                        time.sleep(0.08)
 
                 if cancelled:
                     console.print("[bold yellow]⏹ RTS > Cancelled by user (ESC).[/bold yellow]\n")
