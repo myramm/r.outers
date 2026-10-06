@@ -6,7 +6,7 @@ from rich.prompt import Prompt
 from rich.panel import Panel
 from rich.table import Table
 
-from ui import console, show_banner, print_markdown, show_subtle_tip, start_new_turn_tip
+from ui import console, show_banner, print_markdown, start_new_turn_tip
 from config import (
     get_active_config, update_active_model, switch_provider,
     add_new_provider, load_full_config, save_full_config, PRESET_PROVIDERS,
@@ -388,7 +388,6 @@ def handle_command(user_input, config, messages, auto_approve):
         else:
             if content:
                 print_markdown(content)
-                show_subtle_tip()
             elif not reasoning:
                 pass
             break
