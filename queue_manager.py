@@ -26,6 +26,10 @@ def add_queued_message(msg):
         with _QUEUE_LOCK:
             _MESSAGE_QUEUE.append(msg.strip())
 
+def get_all_queued_messages():
+    with _QUEUE_LOCK:
+        return list(_MESSAGE_QUEUE)
+
 def set_pending_draft(text):
     global _PENDING_DRAFT
     _PENDING_DRAFT = text
@@ -148,10 +152,9 @@ class AsyncInputQueueWatcher:
                         if b in (b'\r', b'\n'):
                             line_text = "".join(self._current_buffer).strip()
                             self._current_buffer = []
-                            self._notify_or_render()
                             if line_text:
                                 add_queued_message(line_text)
-                                console.print(f"[bold cyan]⚡ [Antrean]:[/bold cyan] [bold white]\"{line_text}\"[/bold white] [dim](akan dieksekusi setelah selesai)[/dim]")
+                            self._notify_or_render()
                             i += 1
                         elif b in (b'\x7f', b'\x08'):
                             if self._current_buffer:

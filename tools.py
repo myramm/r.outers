@@ -376,18 +376,26 @@ def execute_tool(name, args, auto_approve=False):
             tip_line = f"  [dim]└ Tip: {current_tip}[/dim]"
 
             from styles import get_safe_width
+            from queue_manager import get_all_queued_messages
 
             try:
                 with console.status(f"[bold cyan]Running command...[/bold cyan] [dim](0.0s | ESC: Stop)[/dim]\n{tip_line}") as status:
                     def update_bash_status():
                         elapsed = time.time() - start_time
                         txt = watcher.get_buffer_text()
+                        queued_msgs = get_all_queued_messages()
+                        parts = [f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]", tip_line]
+
+                        for q in queued_msgs:
+                            parts.append(f"[bold cyan]⚡ [Antrean]:[/bold cyan] [bold white]\"{q}\"[/bold white] [dim](akan dieksekusi setelah selesai)[/dim]")
+
                         if txt:
                             safe_w = get_safe_width()
                             div_str = f"[dim]{'─' * safe_w}[/dim]"
-                            status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}\n{div_str}\n> [bold green]{txt}[/bold green][bold green]█[/bold green]")
-                        else:
-                            status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}")
+                            parts.append(div_str)
+                            parts.append(f"> [bold green]{txt}[/bold green][bold green]█[/bold green]")
+
+                        status.update("\n".join(parts))
 
                     watcher.on_change = update_bash_status
                     watcher.start()
