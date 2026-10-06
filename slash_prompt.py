@@ -28,6 +28,7 @@ SLASH_COMMANDS = [
     {"cmd": "/setup", "desc": "Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)"},
     {"cmd": "/theme", "desc": "Pilih Color Scheme (terminal, light, dark, solarized, tokyo night)"},
     {"cmd": "/model", "desc": "Pilih dan ganti model AI aktif (/m)"},
+    {"cmd": "/add-model", "desc": "Tambah model AI custom baru ke provider aktif"},
     {"cmd": "/provider", "desc": "Pindah atau tambah Provider API (/p)"},
     {"cmd": "/skills", "desc": "Kelola & lihat daftar skill terpasang"},
     {"cmd": "/add-skill", "desc": "Pasang skill baru dari URL GitHub / repo"},

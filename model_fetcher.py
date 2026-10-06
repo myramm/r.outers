@@ -273,7 +273,8 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
 
 def get_all_available_models(current_config=None, force_refresh=False):
     """
-    Get all models across active and configured providers, with active provider models first.
+    Get all models across active and configured providers, with active provider models first,
+    including user-added custom models.
     """
     full_cfg = load_full_config()
     active_prov = full_cfg.get("active_provider", "clouvia")
@@ -287,17 +288,43 @@ def get_all_available_models(current_config=None, force_refresh=False):
             "provider_name": "9Router",
             "tag": "SETUP",
             "fav": True
+        },
+        {
+            "id": "add_custom_model",
+            "name": "➕ Tambah Model Custom Baru...",
+            "provider_id": active_prov,
+            "provider_name": "Custom",
+            "tag": "ADD",
+            "fav": True
         }
     ]
-    seen_ids = {("9router", "setup_9router")}
+    seen_ids = {("9router", "setup_9router"), (active_prov, "add_custom_model")}
 
-    # 1. Fetch live models for active provider
+    # 1. Add user-defined custom models first
+    custom_models = full_cfg.get("custom_models", [])
+    for cm in custom_models:
+        prov = cm.get("provider_id", active_prov)
+        key = (prov, cm["id"])
+        if key not in seen_ids:
+            all_models.append({
+                "id": cm["id"],
+                "name": cm.get("name", cm["id"]),
+                "provider_id": prov,
+                "provider_name": providers.get(prov, {}).get("name", prov.capitalize()),
+                "tag": cm.get("tag", "CUSTOM"),
+                "fav": True
+            })
+            seen_ids.add(key)
+
+    # 2. Fetch live models for active provider
     active_models = fetch_provider_models(active_prov, force_refresh=force_refresh)
     for m in active_models:
-        all_models.append(m)
-        seen_ids.add((m["provider_id"], m["id"]))
+        key = (m["provider_id"], m["id"])
+        if key not in seen_ids:
+            all_models.append(m)
+            seen_ids.add(key)
 
-    # 2. Fetch models for other configured providers and preset providers
+    # 3. Fetch models for other configured providers and preset providers
     prov_ids_to_check = list(providers.keys())
     for p_id in PRESET_PROVIDERS:
         if p_id not in prov_ids_to_check:
@@ -312,7 +339,7 @@ def get_all_available_models(current_config=None, force_refresh=False):
                     all_models.append(m)
                     seen_ids.add(key)
 
-    # 3. Add default presets if not already present
+    # 4. Add default presets if not already present
     for m in FALLBACK_DEFAULT_MODELS:
         key = (m["provider_id"], m["id"])
         if key not in seen_ids:

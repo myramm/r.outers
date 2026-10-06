@@ -257,15 +257,27 @@ def handle_command(user_input, config, messages, auto_approve):
             return config, auto_approve
         elif cmd_lower in ["/model", "/m"]:
             if len(parts) > 1 and parts[1].strip():
-                new_m = parts[1].strip()
-                update_active_model(new_m)
-                config["model"] = new_m
-                if is_thinking_supported(new_m):
-                    config = select_thinking_interactive(config, model_name_display=new_m, is_inline=True)
+                sub_arg = parts[1].strip()
+                if sub_arg.lower().startswith("add ") or sub_arg.lower() == "add":
+                    from selector import prompt_add_custom_model_interactive
+                    init_id = sub_arg[4:].strip() if sub_arg.lower().startswith("add ") else ""
+                    config = prompt_add_custom_model_interactive(current_config=config, initial_model_id=init_id)
                 else:
-                    console.print(f"[bold green]✔ Model diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]\n")
+                    new_m = sub_arg
+                    from config import add_custom_model
+                    add_custom_model(new_m, provider_id=config.get("provider_id", "clouvia"), name=new_m, set_as_active=True)
+                    config["model"] = new_m
+                    if is_thinking_supported(new_m):
+                        config = select_thinking_interactive(config, model_name_display=new_m, is_inline=True)
+                    else:
+                        console.print(f"[bold green]✔ Model diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]\n")
             else:
                 config = select_model_interactive(config)
+            return config, auto_approve
+        elif cmd_lower in ["/add-model", "/addmodel"]:
+            from selector import prompt_add_custom_model_interactive
+            init_id = parts[1].strip() if len(parts) > 1 and parts[1].strip() else ""
+            config = prompt_add_custom_model_interactive(current_config=config, initial_model_id=init_id)
             return config, auto_approve
         elif cmd_lower in ["/provider", "/providers", "/p"]:
             config = switch_provider()
@@ -296,7 +308,16 @@ def handle_command(user_input, config, messages, auto_approve):
                     install_skill_from_url(url)
             return config, auto_approve
         elif cmd_lower in ["/9router", "/9r"]:
-            config = show_9router_hub_interactive(config)
+            if len(parts) > 1 and parts[1].strip():
+                sub_arg = parts[1].strip()
+                if sub_arg.lower().startswith("add ") or sub_arg.lower() == "add":
+                    from selector import prompt_add_custom_model_interactive
+                    init_id = sub_arg[4:].strip() if sub_arg.lower().startswith("add ") else ""
+                    config = prompt_add_custom_model_interactive(provider_id="9router", current_config=config, initial_model_id=init_id)
+                else:
+                    config = show_9router_hub_interactive(config)
+            else:
+                config = show_9router_hub_interactive(config)
             return config, auto_approve
         elif cmd_lower in ["/setup", "/config", "/pengaturan", "/settings"]:
             auto_ref = [auto_approve]

@@ -274,6 +274,55 @@ def setup_9router_interactive(current_config=None):
 
     return get_active_config()
 
+def prompt_add_custom_model_interactive(provider_id=None, current_config=None, initial_model_id=""):
+    from rich.prompt import Prompt
+    from config import load_full_config, save_full_config, get_active_config, add_custom_model, is_thinking_supported
+    
+    full_cfg = load_full_config()
+    if provider_id is None:
+        provider_id = full_cfg.get("active_provider", "clouvia")
+    providers = full_cfg.get("providers", {})
+    prov_name = providers.get(provider_id, {}).get("name", provider_id.capitalize())
+
+    console.print(f"\n[bold cyan]➕ Tambah Model Custom Baru ([yellow]{prov_name}[/yellow])[/bold cyan]")
+    try:
+        model_id = Prompt.ask(
+            "[bold cyan]Masukkan ID / Nama Model[/bold cyan] [dim](contoh: ag/gemini-3.7-flash-high, claude-3-7-sonnet, deepseek-r1) (Esc/e: batal)[/dim]",
+            default=initial_model_id
+        ).strip()
+    except (KeyboardInterrupt, EOFError):
+        return current_config or get_active_config()
+
+    if is_cancel_input(model_id) or not model_id:
+        console.print("[yellow]Batal menambah model.[/yellow]\n")
+        return current_config or get_active_config()
+
+    try:
+        display_name = Prompt.ask(
+            "[bold cyan]Nama Tampilan (Opsional)[/bold cyan] [dim](tekan Enter untuk default)[/dim]",
+            default=model_id
+        ).strip()
+    except (KeyboardInterrupt, EOFError):
+        display_name = model_id
+
+    add_custom_model(model_id, provider_id=provider_id, name=display_name, tag="CUSTOM", set_as_active=True)
+    
+    cfg = get_active_config()
+    cfg["model"] = model_id
+
+    # Invalidate model cache so it refreshes immediately
+    from model_fetcher import fetch_provider_models
+    try:
+        fetch_provider_models(provider_id, force_refresh=True)
+    except Exception:
+        pass
+    
+    if is_thinking_supported(model_id):
+        return select_thinking_interactive(cfg, model_name_display=display_name, provider_name_display=prov_name, is_inline=True)
+    else:
+        console.print(f"[bold green]✔ Model custom '[yellow]{display_name}[/yellow]' ([cyan]{model_id}[/cyan]) berhasil disimpan dan diaktifkan![/bold green]\n")
+        return cfg
+
 def show_9router_hub_interactive(current_config=None):
     from rich.prompt import Prompt
     from config import load_full_config, save_full_config, get_active_config
@@ -321,6 +370,13 @@ def show_9router_hub_interactive(current_config=None):
             "desc": "Live API Model Discovery dari katalog 9Router",
             "tag": "MODEL",
             "color": "\033[1;35m"
+        },
+        {
+            "id": "add_model",
+            "name": "➕ Tambah Model Custom Baru",
+            "desc": "Tambahkan ID model AI baru ke katalog 9Router & aktifkan",
+            "tag": "ADD",
+            "color": "\033[1;32m"
         },
         {
             "id": "activate",
@@ -424,7 +480,7 @@ def show_9router_hub_interactive(current_config=None):
             elif k == 'ENTER':
                 chosen = menu_items[selected_idx]["id"]
                 break
-            elif k in ('1', '2', '3', '4', '5', '6', '7'):
+            elif k in ('1', '2', '3', '4', '5', '6', '7', '8'):
                 num_idx = int(k) - 1
                 if 0 <= num_idx < len(menu_items):
                     selected_idx = num_idx
@@ -484,17 +540,9 @@ def show_9router_hub_interactive(current_config=None):
             save_full_config(full_cfg)
             return select_model_interactive(get_active_config())
         else:
-            try:
-                raw_m = Prompt.ask("[bold cyan]Masukkan nama model manual[/bold cyan] [dim](Esc/e: batal)[/dim]", default=model).strip()
-            except (KeyboardInterrupt, EOFError):
-                return get_active_config()
-            if not is_cancel_input(raw_m) and raw_m:
-                entry["model"] = raw_m
-                providers["9router"] = entry
-                full_cfg["providers"] = providers
-                save_full_config(full_cfg)
-                console.print(f"[bold green]✔ Model 9Router diubah ke:[/bold green] [bold yellow]{raw_m}[/bold yellow]\n")
-            return get_active_config()
+            return prompt_add_custom_model_interactive(provider_id="9router", current_config=current_config, initial_model_id=model)
+    elif chosen == "add_model":
+        return prompt_add_custom_model_interactive(provider_id="9router", current_config=current_config)
     elif chosen == "activate":
         if not url or not key:
             console.print("[bold yellow]⚠ URL atau API Key 9Router belum lengkap. Menjalankan setup...[/bold yellow]")
@@ -679,6 +727,12 @@ def select_model_interactive(current_config):
 
                 if target_model_id == "setup_9router":
                     return setup_9router_interactive(current_config)
+
+                if target_model_id == "add_custom_model":
+                    return prompt_add_custom_model_interactive(provider_id=target_prov_id, current_config=current_config)
+
+                if chosen.get("tag") == "CUSTOM" and not chosen.get("fav") and target_model_id not in ("setup_9router", "add_custom_model"):
+                    return prompt_add_custom_model_interactive(provider_id=target_prov_id, current_config=current_config, initial_model_id=target_model_id)
 
                 full_cfg = load_full_config()
                 providers = full_cfg.get("providers", {})

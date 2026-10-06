@@ -218,6 +218,48 @@ def update_active_model(new_model):
         return True
     return False
 
+def add_custom_model(model_id, provider_id=None, name=None, tag="CUSTOM", set_as_active=True):
+    if not model_id:
+        return False
+    full_cfg = load_full_config()
+    if provider_id is None:
+        provider_id = full_cfg.get("active_provider", "clouvia")
+    
+    custom_models = full_cfg.get("custom_models", [])
+    existing_idx = None
+    for idx, item in enumerate(custom_models):
+        if item.get("id") == model_id and item.get("provider_id") == provider_id:
+            existing_idx = idx
+            break
+
+    entry = {
+        "id": model_id,
+        "name": name or model_id,
+        "provider_id": provider_id,
+        "tag": tag,
+        "fav": True
+    }
+
+    if existing_idx is not None:
+        custom_models[existing_idx] = entry
+    else:
+        custom_models.insert(0, entry)
+
+    full_cfg["custom_models"] = custom_models
+
+    if set_as_active and provider_id in full_cfg.get("providers", {}):
+        full_cfg["providers"][provider_id]["model"] = model_id
+
+    save_full_config(full_cfg)
+    return True
+
+def get_custom_models(provider_id=None):
+    full_cfg = load_full_config()
+    customs = full_cfg.get("custom_models", [])
+    if provider_id:
+        return [m for m in customs if m.get("provider_id") == provider_id]
+    return customs
+
 def add_new_provider():
     console.print("\n[bold cyan]➕ Tambah / Setup Provider[/bold cyan]")
     console.print("Pilih Provider:")
