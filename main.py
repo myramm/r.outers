@@ -67,10 +67,14 @@ def handle_model_menu(config):
 
     console.print(Panel("\n".join(lines), title="🤖 Pengaturan Model & Provider"))
 
-    choice = Prompt.ask("\nPilih opsi (1-{}, s, 9, c, p, l, e)".format(len(rec_models)), default="1").strip()
+    try:
+        choice = Prompt.ask("\nPilih opsi (1-{}, s, 9, c, p, l, e/esc)".format(len(rec_models)), default="1").strip()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[yellow]Batal mengubah model.[/yellow]")
+        return config
     
     # Check Exit / Cancel
-    if choice.lower() == "e":
+    if choice.lower() in ("e", "esc", "q", "exit", "batal", "back", "\x1b") or choice.startswith("\x1b"):
         console.print("[yellow]Batal mengubah model.[/yellow]")
         return config
 

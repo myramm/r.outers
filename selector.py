@@ -176,60 +176,87 @@ def render_frame_lines(query, filtered_items, selected_idx, scroll_offset, max_v
     
     return lines
 
+def is_cancel_input(val):
+    if not val:
+        return False
+    val_clean = str(val).strip().lower()
+    return val_clean in ("e", "esc", "q", "exit", "batal", "back", "\x1b") or val_clean.startswith("\x1b")
+
 def setup_9router_interactive(current_config=None):
     from rich.prompt import Prompt
-    console.print("\n[bold cyan]⚡ Setup & Hubungkan 9Router[/bold cyan]")
+    from config import get_active_config
+    console.print("\n[bold cyan]⚡ Setup & Hubungkan 9Router[/bold cyan] [dim](Ketik 'esc' / 'e' kapan saja untuk batal)[/dim]")
     console.print("[dim]Masukkan URL domain 9Router Anda (misal Railway/VPS), API Key, dan pilih Model AI.[/dim]\n")
 
     full_cfg = load_full_config()
     providers = full_cfg.get("providers", {})
     existing_9r = providers.get("9router", {})
 
-    # 1. Masukkan Domain / Base URL
-    def_url = existing_9r.get("base_url", "")
-    raw_url = Prompt.ask("[bold cyan]1. Masukkan Domain / Base URL 9Router[/bold cyan]", default=def_url if def_url else "https://9router-production-b35d.up.railway.app").strip()
-    if not raw_url or raw_url.lower() == "e":
-        console.print("[yellow]Batal setup 9Router.[/yellow]\n")
-        from config import get_active_config
-        return current_config or get_active_config()
-    if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
-        raw_url = "https://" + raw_url
-    raw_url = raw_url.rstrip("/")
-    if not raw_url.endswith("/v1"):
-        raw_url = f"{raw_url}/v1"
-    base_url = raw_url
+    try:
+        # 1. Masukkan Domain / Base URL
+        def_url = existing_9r.get("base_url", "")
+        raw_url = Prompt.ask(
+            "[bold cyan]1. Masukkan Domain / Base URL 9Router[/bold cyan] [dim](Esc/e: batal)[/dim]",
+            default=def_url if def_url else "https://9router-production-b35d.up.railway.app"
+        ).strip()
+        
+        if is_cancel_input(raw_url):
+            console.print("[yellow]Batal setup 9Router.[/yellow]\n")
+            return current_config or get_active_config()
 
-    # 2. Masukkan API Key
-    def_key = existing_9r.get("api_key", "")
-    api_key = Prompt.ask("[bold cyan]2. Masukkan / Paste API Key 9Router[/bold cyan]", default=def_key if def_key else "").strip()
-    if not api_key or api_key.lower() == "e":
-        console.print("[yellow]Batal setup 9Router (API Key kosong).[/yellow]\n")
-        from config import get_active_config
-        return current_config or get_active_config()
+        if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+            raw_url = "https://" + raw_url
+        raw_url = raw_url.rstrip("/")
+        if not raw_url.endswith("/v1"):
+            raw_url = f"{raw_url}/v1"
+        base_url = raw_url
 
-    # 3. Auto-fetch live models and prompt model
-    console.print("\n[dim]⏳ Mengambil daftar model aktif dari 9Router...[/dim]")
-    from model_fetcher import fetch_provider_models
-    live_models = fetch_provider_models("9router", base_url=base_url, api_key=api_key, force_refresh=True)
+        # 2. Masukkan API Key
+        def_key = existing_9r.get("api_key", "")
+        api_key = Prompt.ask(
+            "[bold cyan]2. Masukkan / Paste API Key 9Router[/bold cyan] [dim](Esc/e: batal)[/dim]",
+            default=def_key if def_key else ""
+        ).strip()
 
-    suggested_model = "ag/gemini-3.7-flash-high"
-    if live_models:
-        model_ids = [m["id"] for m in live_models]
-        if existing_9r.get("model") in model_ids:
-            suggested_model = existing_9r.get("model")
-        elif any("gemini-3.7-flash" in m["id"] for m in live_models):
-            suggested_model = next(m["id"] for m in live_models if "gemini-3.7-flash" in m["id"])
+        if not api_key or is_cancel_input(api_key):
+            console.print("[yellow]Batal setup 9Router (API Key kosong atau dibatalkan).[/yellow]\n")
+            return current_config or get_active_config()
+
+        # 3. Auto-fetch live models and prompt model
+        console.print("\n[dim]⏳ Mengambil daftar model aktif dari 9Router...[/dim]")
+        from model_fetcher import fetch_provider_models
+        live_models = fetch_provider_models("9router", base_url=base_url, api_key=api_key, force_refresh=True)
+
+        suggested_model = "ag/gemini-3.7-flash-high"
+        if live_models:
+            model_ids = [m["id"] for m in live_models]
+            if existing_9r.get("model") in model_ids:
+                suggested_model = existing_9r.get("model")
+            elif any("gemini-3.7-flash" in m["id"] for m in live_models):
+                suggested_model = next(m["id"] for m in live_models if "gemini-3.7-flash" in m["id"])
+            else:
+                suggested_model = model_ids[0]
+
+            console.print(f"[bold green]✔ Berhasil terhubung! Terdeteksi {len(live_models)} model aktif.[/bold green]")
+            console.print("[dim]Contoh model tersedia: " + ", ".join(model_ids[:5]) + "[/dim]\n")
         else:
-            suggested_model = model_ids[0]
+            console.print("[yellow]⚠ Catatan: Tidak dapat mengambil katalog live secara otomatis, masukkan nama model secara manual.[/yellow]\n")
 
-        console.print(f"[bold green]✔ Berhasil terhubung! Terdeteksi {len(live_models)} model aktif.[/bold green]")
-        console.print("[dim]Contoh model tersedia: " + ", ".join(model_ids[:5]) + "[/dim]\n")
-    else:
-        console.print("[yellow]⚠ Catatan: Tidak dapat mengambil katalog live secara otomatis, masukkan nama model secara manual.[/yellow]\n")
+        model = Prompt.ask(
+            "[bold cyan]3. Masukkan Model AI yang Ingin Digunakan[/bold cyan] [dim](Esc/e: batal)[/dim]",
+            default=suggested_model
+        ).strip()
 
-    model = Prompt.ask("[bold cyan]3. Masukkan Model AI yang Ingin Digunakan[/bold cyan]", default=suggested_model).strip()
-    if not model or model.lower() == "e":
-        model = suggested_model
+        if is_cancel_input(model):
+            console.print("[yellow]Batal setup 9Router.[/yellow]\n")
+            return current_config or get_active_config()
+
+        if not model:
+            model = suggested_model
+
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[yellow]Batal setup 9Router.[/yellow]\n")
+        return current_config or get_active_config()
 
     providers["9router"] = {
         "name": "9Router",
@@ -245,7 +272,6 @@ def setup_9router_interactive(current_config=None):
     console.print(f"  • Base URL: [cyan]{base_url}[/cyan]")
     console.print(f"  • Model Aktif: [bold yellow]{model}[/bold yellow]\n")
 
-    from config import get_active_config
     return get_active_config()
 
 def select_model_interactive(current_config):
