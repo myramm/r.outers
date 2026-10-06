@@ -174,10 +174,10 @@ def clear_popup_lines(count):
     sys.stdout.write("\033[3B\033[J\033[3A\r")
     sys.stdout.flush()
 
-def render_input(theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high", current_input="", cursor_pos=0, term_cols=80, is_first_render=False):
+def render_input(theme_id="terminal", provider_name="9router", model_name="ag/gemini-3.7-flash-high", auto_approve=True, thinking_mode="high", current_input="", cursor_pos=0, term_cols=80, is_first_render=False):
     return render_input_area("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, thinking_mode=thinking_mode, current_input=current_input, cursor_col=cursor_pos, term_cols=term_cols, is_first_render=is_first_render)
 
-def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high"):
+def get_smart_input(prompt_display_str="", sub_info="", provider_name="9router", model_name="ag/gemini-3.7-flash-high", auto_approve=True, thinking_mode="high"):
     global _terminal_resized
     _terminal_resized = False
     _, theme_id = get_current_style_settings()

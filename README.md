@@ -58,7 +58,7 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 | `/skills` | **Pusat Manajemen Skill**: Menu interaktif untuk lihat daftar, tambah dari GitHub, atau hapus skill |
 | `/add-skill` *[url]* | **Pasang Skill Baru**: Unduh dan pasang skill langsung dari URL repository GitHub |
 | `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard yang responsif |
-| `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (Clouvia, Atria, NVIDIA NIM, Custom) |
+| `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (9Router, Atria, NVIDIA NIM, OpenRouter, Custom) |
 | `/list` | Tabel daftar lengkap semua Provider & Model yang tersedia |
 | `/memory` | Lihat dan kelola memori proyek yang tersimpan |
 | `/clear` | Bersihkan riwayat percakapan sesi ini dan refresh konteks AI |
@@ -226,7 +226,7 @@ rm -f ~/.routers_config.json ~/.routers_memory.json ~/.routers_project_memory.js
 - **Full Autonomous Shell**: Eksekusi perintah bash (`pkg`, `npm`, `pip`, `git`, `python`, `node`, dll) disertai *Live Progress Loading Spinner* & pembatalan cepat (<kbd>ESC</kbd>).
 - **Integrated Anti-Slop & Superpowers**: Didukung standar Anti-Slop (anti kode template murahan) dan Superpowers (TDD, Systematic Debugging, Pre-flight Verification).
 - **Dynamic Skill Loader (`/skills` & `/add-skill`)**: Otomatis mendeteksi dan mengunduh modul skill dari GitHub langsung ke perangkat.
-- **Support 80+ Model NVIDIA NIM, Clouvia & Atria**: Akses model unggulan seperti Nemotron 120B/340B, GPT-OSS 20B, DeepSeek, GLM, dll.
+- **Support 80+ Model NVIDIA NIM, 9Router, OpenRouter & Atria**: Akses model unggulan seperti Gemini 3.7 Flash High, Nemotron 120B/340B, GPT-OSS 20B, DeepSeek, GLM, dll.
 - **Smart Keyboard Navigation**: Dukungan tombol panah, Tab autocomplete, ESC cancel, pencarian filter cepat, dan input sensitif yang nyaman di HP.
 - **Autonomous Code Editor**: Membaca, membuat, mencari, dan mengedit file secara presisi.
 - **Long-term Memory**: Mengingat preferensi Anda dan struktur proyek lintas sesi.

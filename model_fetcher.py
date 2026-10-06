@@ -13,17 +13,6 @@ FALLBACK_DEFAULT_MODELS = [
     {"id": "ag/gemini-3.8-flash", "name": "Gemini 3.8 Flash (Antigravity)", "provider_id": "9router", "provider_name": "9Router", "tag": "FAST", "fav": True},
     {"id": "ag/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (Antigravity)", "provider_id": "9router", "provider_name": "9Router", "tag": "REASON", "fav": True},
     {"id": "ag/claude-opus-4-6-thinking", "name": "Claude Opus 4.6 Thinking (Antigravity)", "provider_id": "9router", "provider_name": "9Router", "tag": "TOP", "fav": True},
-    {"id": "free-model", "name": "Free Router Model", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
-    {"id": "auto", "name": "Auto Router", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
-    {"id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
-    {"id": "deepseek-4.1-flash", "name": "DeepSeek 4.1 Flash", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
-    {"id": "coding-high", "name": "Coding High Speed", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "CODE", "fav": True},
-    {"id": "gemini-3.8-flash-high", "name": "Gemini 3.8 Flash High", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FAST", "fav": True},
-    {"id": "claude-sonnet-5-thinking-agentic", "name": "Claude Sonnet 5 Thinking Agentic", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "REASON", "fav": True},
-    {"id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "TOP", "fav": True},
-    {"id": "qwen-3.8-max-thinking-agentic", "name": "Qwen 3.8 Max Thinking Agentic", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "REASON", "fav": True},
-    {"id": "kimi-k3", "name": "Kimi K3", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "AI", "fav": False},
-    {"id": "glm5.3-thinking-agentic", "name": "GLM 5.3 Thinking Agentic", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "REASON", "fav": True},
     {"id": "Atria-Dawn-Preview", "name": "Atria Dawn Preview", "provider_id": "atria", "provider_name": "Atria ASI", "tag": "TOP", "fav": True},
     {"id": "nvidia/nemotron-3-super-120b-a12b", "name": "Nemotron 3 Super 120B", "provider_id": "nvidia", "provider_name": "NVIDIA NIM", "tag": "TOP", "fav": True},
     {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Free)", "provider_id": "openrouter", "provider_name": "OpenRouter", "tag": "FREE", "fav": True},
@@ -48,7 +37,7 @@ def save_cache(cache_data):
     except Exception:
         pass
 
-def format_model_entry(raw_model_obj, provider_id="clouvia", provider_name="Clouvia"):
+def format_model_entry(raw_model_obj, provider_id="9router", provider_name="9Router"):
     if isinstance(raw_model_obj, str):
         model_id = raw_model_obj
         context_len = None
@@ -166,9 +155,9 @@ def load_openrouter_catalog(prov_name="OpenRouter"):
 
     return []
 
-def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, force_refresh=False):
+def fetch_provider_models(provider_id="9router", base_url=None, api_key=None, force_refresh=False):
     """
-    Fetch models automatically from the provider's /v1/models endpoint (or fallback https://router.clouvia.id/v1/models).
+    Fetch models automatically from the provider's /v1/models endpoint.
     For OpenRouter, uses GitHub raw mirror / local catalog to avoid Cloudflare/VPS IP blocking.
     Caches the results locally to guarantee fast offline startup.
     """
@@ -203,15 +192,13 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
             return or_models
 
     if not base_url:
-        base_url = prov_cfg.get("base_url") or "https://router.clouvia.id/v1"
+        base_url = prov_cfg.get("base_url") or ""
     if not api_key:
         api_key = prov_cfg.get("api_key") or ""
         if not api_key:
             env_keys = load_env_keys()
             if provider_id == "9router":
                 api_key = env_keys.get("NINEROUTER_API_KEY", env_keys.get("ROUTER9_API_KEY", env_keys.get("NINE_ROUTER_API_KEY", os.environ.get("NINEROUTER_API_KEY", os.environ.get("ROUTER9_API_KEY", os.environ.get("NINE_ROUTER_API_KEY", ""))))))
-            elif provider_id == "clouvia":
-                api_key = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", ""))
             elif provider_id == "atria":
                 api_key = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
             elif provider_id == "nvidia":
@@ -221,6 +208,13 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
             else:
                 api_key = env_keys.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
 
+    if not base_url:
+        # Fallback to defaults filtered by provider if no URL configured
+        defaults = [m for m in FALLBACK_DEFAULT_MODELS if m["provider_id"] == provider_id]
+        if defaults:
+            return defaults
+        return [format_model_entry(prov_cfg.get("model", "default-model"), provider_id=provider_id, provider_name=prov_name)]
+
     # Determine endpoint URLs to try
     urls_to_try = []
     clean_base = base_url.rstrip("/")
@@ -229,9 +223,6 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
     else:
         urls_to_try.append(f"{clean_base}/v1/models")
         urls_to_try.append(f"{clean_base}/models")
-
-    if provider_id == "clouvia":
-        urls_to_try.insert(0, "https://router.clouvia.id/v1/models")
 
     headers = {}
     if api_key:
@@ -277,7 +268,7 @@ def get_all_available_models(current_config=None, force_refresh=False):
     including user-added custom models.
     """
     full_cfg = load_full_config()
-    active_prov = full_cfg.get("active_provider", "clouvia")
+    active_prov = full_cfg.get("active_provider", "9router")
     providers = full_cfg.get("providers", {})
 
     all_models = [
@@ -348,7 +339,7 @@ def get_all_available_models(current_config=None, force_refresh=False):
 
     return all_models
 
-def get_popular_models_for_provider(provider_id="clouvia", limit=10):
+def get_popular_models_for_provider(provider_id="9router", limit=10):
     models = fetch_provider_models(provider_id)
     # Put favorites first, then by tag
     favs = [m for m in models if m.get("fav")]

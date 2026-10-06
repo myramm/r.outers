@@ -33,7 +33,7 @@ def show_all_providers_and_models(active_config):
 
     full_cfg = load_full_config()
     providers = full_cfg.get("providers", {})
-    active_id = active_config.get("provider_id", "clouvia")
+    active_id = active_config.get("provider_id", "9router")
 
     for idx, (p_id, p_info) in enumerate(providers.items(), 1):
         status = "[bold green]● AKTIF[/bold green]" if p_id == active_id else "[dim]○ Standby[/dim]"
@@ -48,10 +48,10 @@ def show_all_providers_and_models(active_config):
     console.print(table)
 
 def handle_model_menu(config):
-    prov_id = config.get("provider_id", "clouvia")
+    prov_id = config.get("provider_id", "9router")
     rec_models = get_popular_models_for_provider(prov_id, limit=10)
     if not rec_models:
-        rec_models = ["free-model", "coding-high", "auto"]
+        rec_models = ["ag/gemini-3.7-flash-high", "ag/gemini-3.8-flash"]
 
     lines = [f"[bold cyan]Provider Aktif:[/bold cyan] [bold green]{config.get('provider_name')}[/bold green] ([dim]{config.get('base_url')}[/dim])"]
     lines.append(f"[bold]Model Saat Ini:[/bold] [bold yellow]{config.get('model')}[/bold yellow]\n")
@@ -186,8 +186,8 @@ def handle_command(user_input, config, messages, auto_approve):
     # Status Command
     if cmd_raw in ["status", "/status"]:
         from queue_manager import has_queued_messages
-        active_prov = config.get("provider_id", "clouvia")
-        curr_model = config.get('model', 'free-model')
+        active_prov = config.get("provider_id", "9router")
+        curr_model = config.get('model', 'ag/gemini-3.7-flash-high')
         supports_th = is_thinking_supported(curr_model)
         if supports_th:
             th_mode = str(config.get("thinking_mode", "high")).lower()
@@ -265,7 +265,7 @@ def handle_command(user_input, config, messages, auto_approve):
                 else:
                     new_m = sub_arg
                     from config import add_custom_model
-                    add_custom_model(new_m, provider_id=config.get("provider_id", "clouvia"), name=new_m, set_as_active=True)
+                    add_custom_model(new_m, provider_id=config.get("provider_id", "9router"), name=new_m, set_as_active=True)
                     config["model"] = new_m
                     if is_thinking_supported(new_m):
                         config = select_thinking_interactive(config, model_name_display=new_m, is_inline=True)
@@ -439,8 +439,8 @@ def main():
         full_cfg = load_full_config()
         config = get_active_config()
         auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
-        active_prov = full_cfg.get("active_provider", "clouvia")
-        curr_model = config.get('model', 'free-model')
+        active_prov = full_cfg.get("active_provider", "9router")
+        curr_model = config.get('model', 'ag/gemini-3.7-flash-high')
         thinking_mode = config.get("thinking_mode", "high")
 
         # 1. IDLE: Check queued message or get interactive input

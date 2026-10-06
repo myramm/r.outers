@@ -128,10 +128,10 @@ def show_settings_hub(current_config, auto_approve_ref=None):
 
     while True:
         full_cfg = load_full_config()
-        active_prov = full_cfg.get("active_provider", "clouvia")
+        active_prov = full_cfg.get("active_provider", "9router")
         providers = full_cfg.get("providers", {})
         curr_prov_info = providers.get(active_prov, {})
-        curr_model = curr_prov_info.get("model", "free-model")
+        curr_model = curr_prov_info.get("model", "ag/gemini-3.7-flash-high")
         
         has_key = bool(curr_prov_info.get("api_key", "").strip())
         key_status = "[Tersimpan]" if has_key else "[Kosong]"
@@ -518,4 +518,5 @@ def handle_factory_reset():
     if confirm:
         initial = setup_initial_config()
         save_full_config(initial)
-        console.print("[bold green]✔ Konfigurasi berhasil direset ke setelan awal pabrik (Clouvia & Atria ASI)![/bold green]\n")
+        console.print("[bold green]✔ Konfigurasi berhasil direset ke setelan awal pabrik (9Router & Atria ASI)![/bold green]\n")
+

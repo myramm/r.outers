@@ -281,7 +281,7 @@ MODEL_CLEAN_MAP = {
     "minimax-m3": "Minimax M3"
 }
 
-def format_dynamic_model_label(model_name, provider_name="clouvia", max_len=30):
+def format_dynamic_model_label(model_name, provider_name="9router", max_len=30):
     if not model_name:
         return "Default Model"
     parts = model_name.split("/")[-1]
@@ -299,7 +299,7 @@ def format_dynamic_model_label(model_name, provider_name="clouvia", max_len=30):
         clean = raw_id.replace("-", " ").replace("_", " ").title()
     return truncate_text(clean, max_len)
 
-def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high", current_input="", cursor_col=0, term_cols=None):
+def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="9router", model_name="ag/gemini-3.7-flash-high", auto_approve=True, thinking_mode="high", current_input="", cursor_col=0, term_cols=None):
     scheme = THEMES_MAP.get(theme_id, THEMES_MAP["terminal"])
     p = scheme["palette"]
     perm_str = "Auto" if auto_approve else "Ask"
@@ -396,7 +396,7 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
         "div_width": safe_w
     }
 
-def render_input_area(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high", current_input="", cursor_col=0, term_cols=None, is_first_render=False):
+def render_input_area(style_id="box", theme_id="terminal", provider_name="9router", model_name="ag/gemini-3.7-flash-high", auto_approve=True, thinking_mode="high", current_input="", cursor_col=0, term_cols=None, is_first_render=False):
     """
     Dedicated single renderer for the complete 4-line Antigravity input box:
     Line 1: Top divider

@@ -339,7 +339,7 @@ def prompt_add_custom_model_interactive(provider_id=None, current_config=None, i
     
     full_cfg = load_full_config()
     if provider_id is None:
-        provider_id = full_cfg.get("active_provider", "clouvia")
+        provider_id = full_cfg.get("active_provider", "9router")
     providers = full_cfg.get("providers", {})
     prov_name = providers.get(provider_id, {}).get("name", provider_id.capitalize())
 
@@ -704,7 +704,7 @@ def select_model_interactive(current_config):
                 filtered = [{
                     "name": f"Gunakan '{query}'",
                     "id": query if query else "custom",
-                    "provider_id": current_config.get("provider_id", "clouvia"),
+                    "provider_id": current_config.get("provider_id", "9router"),
                     "provider_name": "Custom",
                     "tag": "CUSTOM",
                     "fav": False
@@ -832,8 +832,6 @@ def select_model_interactive(current_config):
                             existing_api_key = env_keys.get("NINEROUTER_API_KEY", env_keys.get("ROUTER9_API_KEY", env_keys.get("NINE_ROUTER_API_KEY", os.environ.get("NINEROUTER_API_KEY", os.environ.get("ROUTER9_API_KEY", os.environ.get("NINE_ROUTER_API_KEY", "")))))).strip()
                         elif target_prov_id == "atria":
                             existing_api_key = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", "")).strip()
-                        elif target_prov_id == "clouvia":
-                            existing_api_key = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", "")).strip()
                         elif target_prov_id == "nvidia":
                             existing_api_key = env_keys.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", os.environ.get("NVAPI_KEY", ""))).strip()
                         elif target_prov_id == "openrouter":
@@ -843,7 +841,7 @@ def select_model_interactive(current_config):
                     if target_prov_id == "9router" and not prov_entry.get("base_url"):
                         from rich.prompt import Prompt
                         console.print("\n[bold yellow]🌐 9Router membutuhkan Domain / Base URL.[/bold yellow]")
-                        user_domain = Prompt.ask("[bold cyan]Masukkan Domain / Base URL 9Router (contoh: https://9router-production-b35d.up.railway.app)[/bold cyan]").strip()
+                        user_domain = Prompt.ask("[bold cyan]Masukkan Domain / Base URL 9Router (contoh: https://9router-production-3f3d.up.railway.app)[/bold cyan]").strip()
                         if user_domain:
                             if not user_domain.startswith("http://") and not user_domain.startswith("https://"):
                                 user_domain = "https://" + user_domain
@@ -853,8 +851,8 @@ def select_model_interactive(current_config):
                             prov_entry["base_url"] = user_domain
                             console.print(f"[bold green]✔ Base URL 9Router disimpan: {user_domain}[/bold green]")
 
-                    # Jika API Key masih kosong dan bukan clouvia bawaan gratis, minta user input sekali saja
-                    if not existing_api_key and target_prov_id != "clouvia":
+                    # Jika API Key masih kosong, minta user input sekali saja
+                    if not existing_api_key:
                         from rich.prompt import Prompt
                         console.print(f"\n[bold yellow]🔑 Provider '{prov_name}' belum memiliki API Key.[/bold yellow]")
                         user_api_key = Prompt.ask("[bold cyan]Masukkan API Key[/bold cyan]").strip()

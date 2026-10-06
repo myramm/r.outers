@@ -13,11 +13,6 @@ PRESET_PROVIDERS = {
         "base_url": "",
         "default_model": "ag/gemini-3.7-flash-high"
     },
-    "clouvia": {
-        "name": "Clouvia Router (coding-high, free-model)",
-        "base_url": "https://router.clouvia.id/v1",
-        "default_model": "free-model"
-    },
     "atria": {
         "name": "Atria ASI (Atria-Dawn-Preview)",
         "base_url": "https://api.atria-asi.ai/v1",
@@ -58,13 +53,13 @@ def load_full_config():
                 data = json.load(f)
                 if "base_url" in data and "providers" not in data:
                     migrated = {
-                        "active_provider": "clouvia",
+                        "active_provider": "9router",
                         "providers": {
-                            "clouvia": {
-                                "name": "Clouvia Router",
-                                "base_url": "https://router.clouvia.id/v1",
+                            "9router": {
+                                "name": "9Router",
+                                "base_url": data.get("base_url", ""),
                                 "api_key": data.get("api_key", ""),
-                                "model": "free-model"
+                                "model": "ag/gemini-3.7-flash-high"
                             }
                         }
                     }
@@ -185,8 +180,6 @@ def get_active_config():
     if not api_k:
         if active_key == "9router":
             api_k = env_keys.get("NINEROUTER_API_KEY", env_keys.get("ROUTER9_API_KEY", env_keys.get("NINE_ROUTER_API_KEY", os.environ.get("NINEROUTER_API_KEY", os.environ.get("ROUTER9_API_KEY", os.environ.get("NINE_ROUTER_API_KEY", ""))))))
-        elif active_key == "clouvia":
-            api_k = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", ""))
         elif active_key == "atria":
             api_k = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
         elif active_key == "nvidia":
@@ -201,7 +194,7 @@ def get_active_config():
         "provider_name": curr.get("name", active_key),
         "base_url": curr.get("base_url", "").rstrip("/"),
         "api_key": api_k,
-        "model": curr.get("model", "nvidia/nemotron-3-super-120b-a12b"),
+        "model": curr.get("model", "ag/gemini-3.7-flash-high"),
         "timeout": curr.get("timeout", 180),
         "temperature": curr.get("temperature", 0.2),
         "max_tokens": curr.get("max_tokens", 8192),
@@ -223,7 +216,7 @@ def add_custom_model(model_id, provider_id=None, name=None, tag="CUSTOM", set_as
         return False
     full_cfg = load_full_config()
     if provider_id is None:
-        provider_id = full_cfg.get("active_provider", "clouvia")
+        provider_id = full_cfg.get("active_provider", "9router")
     
     custom_models = full_cfg.get("custom_models", [])
     existing_idx = None
@@ -434,14 +427,14 @@ def switch_provider():
 
 def setup_initial_config():
     return {
-        "active_provider": "clouvia",
+        "active_provider": "9router",
         "thinking_mode": "high",
         "providers": {
-            "clouvia": {
-                "name": "Clouvia Router",
-                "base_url": "https://router.clouvia.id/v1",
+            "9router": {
+                "name": "9Router",
+                "base_url": "",
                 "api_key": "",
-                "model": "free-model"
+                "model": "ag/gemini-3.7-flash-high"
             }
         }
     }
