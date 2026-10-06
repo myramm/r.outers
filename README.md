@@ -52,7 +52,8 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 
 | Perintah | Deskripsi |
 | :--- | :--- |
-| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Izin Shell, Kelola Skill, Model, Provider, Reset Total |
+| `/thinking` *(atau `/think`, `/t`)* | **Mode Thinking / Reasoning**: Atur kedalaman berpikir AI (`off`, `low`, `medium`, `high`, `max`, atau custom tokens) |
+| `/setup` *(atau `/config`)* | **Pusat Pengaturan**: Kelola API Key, Mode Thinking, Izin Shell, Kelola Skill, Model, Provider, Reset Total |
 | `/style` *(atau `/theme`)* | **Terminal Style & Theme (Agy Style)**: Ubah tampilan prompt & palette warna (Agy, Cyber, Powerline, Minimal, Classic) |
 | `/skills` | **Pusat Manajemen Skill**: Menu interaktif untuk lihat daftar, tambah dari GitHub, atau hapus skill |
 | `/add-skill` *[url]* | **Pasang Skill Baru**: Unduh dan pasang skill langsung dari URL repository GitHub |
@@ -62,6 +63,31 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 | `/memory` | Lihat dan kelola memori proyek yang tersimpan |
 | `/clear` | Bersihkan riwayat percakapan sesi ini dan refresh konteks AI |
 | `/exit` *(atau `/quit`)* | Keluar dari CLI secara bersih (*atau tekan `Ctrl + D`*) |
+
+---
+
+## 🧠 Mode Thinking / Reasoning (Mirip OpenCode / Claude Code)
+
+`rts` mendukung pengaturan budget penalaran (*thinking mode*) yang terintegrasi langsung dengan model-model AI reasoning modern (seperti DeepSeek R1, Claude Sonnet 3.7/5 Thinking, OpenAI o1/o3/o4, QwQ, dll).
+
+### Level Thinking yang Tersedia:
+- **`off`**: Tanpa thinking (Respons instan, hemat token, cocok untuk pertanyaan cepat).
+- **`low`**: Penalaran ringan (~2k token budget, cepat & efisien).
+- **`medium`**: Penalaran menengah (~8k token budget, seimbang untuk tugas harian).
+- **`high`** *(Default)*: Penalaran mendalam (~16k token budget, cocok untuk arsitektur & coding kompleks).
+- **`max`**: Penalaran maksimal (~32k token budget, untuk deep proof & debugging ekstensif).
+- **`custom`**: Alokasikan jumlah token thinking manual sesuai kebutuhan (misal: 4096, 64000).
+
+### Cara Mengubah Mode Thinking:
+1. **Perintah Cepat CLI**:
+   ```bash
+   /thinking high
+   /thinking low
+   /thinking off
+   /thinking 8192
+   ```
+2. **Menu Visual Interaktif**:
+   Ketik `/thinking` (atau `/think` / `/t`) tanpa argumen, atau buka `/setup` dan pilih menu **🧠 Mode Thinking (Reasoning)** untuk membuka selector dengan navigasi panah keyboard (`UP`/`DOWN`/`Enter`/`Esc`).
 
 ---
 

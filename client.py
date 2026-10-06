@@ -27,12 +27,30 @@ def get_available_skills_list():
                     found.add(d)
     return sorted(list(found))
 
-def build_system_prompt():
+def build_system_prompt(thinking_mode="high", model_id=None):
+    from config import is_thinking_supported
     memory = load_memory()
     cwd = os.getcwd()
     skills = get_available_skills_list()
     skills_summary = ", ".join(skills) if skills else "antislop, antislop-ui, antislop-code, systematic-debugging, test-driven-development"
     
+    thinking_instruction = ""
+    # Only append thinking instructions if model supports reasoning (or model_id not specified)
+    if model_id is None or is_thinking_supported(model_id):
+        th_m = str(thinking_mode).lower()
+        if th_m == "off":
+            thinking_instruction = "\n- **Mode Thinking**: OFF (Langsung berikan solusi dan tindakan secara padat dan efisien tanpa overthinking)."
+        elif th_m == "low":
+            thinking_instruction = "\n- **Mode Thinking**: LOW (~2k token budget - lakukan penalaran ringkas dan cepat sebelum eksekusi)."
+        elif th_m == "medium":
+            thinking_instruction = "\n- **Mode Thinking**: MEDIUM (~8k token budget - lakukan analisis seimbang dan terstruktur sebelum eksekusi)."
+        elif th_m == "max":
+            thinking_instruction = "\n- **Mode Thinking**: MAX (~32k token budget - lakukan penalaran mendalam maksimum, pembuktian logis, dan mitigasi edge cases secara ekstensif)."
+        elif th_m.isdigit():
+            thinking_instruction = f"\n- **Mode Thinking**: CUSTOM ({th_m} token budget - sesuaikan kedalaman analisis dengan alokasi token ini)."
+        else:
+            thinking_instruction = "\n- **Mode Thinking**: HIGH (~16k token budget - lakukan penalaran arsitektur mendalam, step-by-step reasoning, dan perencanaan sistematis sebelum menulis kode atau memanggil tools)."
+
     return f"""Anda adalah R.OUTERS AGENT (RTS), AI software engineer otonom di Android Linux Termux.
 
 STATUS LINGKUNGAN:
@@ -52,7 +70,7 @@ KEMAMPUAN UTAMA:
 PRINSIP REKAYASA PERANGKAT LUNAK (SUPERPOWERS & ANTI-SLOP):
 - **Anti-Slop Standard**: Hasilkan kode dan antarmuka yang presisi, berkarakter, dan bersih. Hindari kode boilerplate yang membengkak atau teks AI generik.
 - **Systematic Debugging & TDD**: Lakukan investigasi akar masalah secara sistematis saat menemukan bug. Verifikasi fungsionalitas dengan pengujian nyata.
-- **Skill Terpasang**: {skills_summary}
+- **Skill Terpasang**: {skills_summary}{thinking_instruction}
   *(Gunakan tool `load_skill` kapan saja Anda butuh instruksi detail mengenai skill tertentu)*
 
 ATURAN UTAMA AGENT:
@@ -63,17 +81,37 @@ ATURAN UTAMA AGENT:
 """
 
 def call_ai(messages, config):
+    from config import is_thinking_supported, get_thinking_budget
     url = f"{config['base_url']}/chat/completions"
     headers = {
         "Authorization": f"Bearer {config['api_key']}",
         "Content-Type": "application/json"
     }
+    
+    thinking_mode = str(config.get("thinking_mode", "high")).lower()
+    model_id = config.get("model", "")
+    model_supports_thinking = is_thinking_supported(model_id)
+
     payload = {
-        "model": config["model"],
+        "model": model_id,
         "messages": messages,
         "tools": TOOLS_SCHEMA,
         "tool_choice": "auto"
     }
+
+    # Inject reasoning_effort & thinking budget ONLY if model supports thinking and mode is not 'off'
+    if model_supports_thinking and thinking_mode != "off":
+        if thinking_mode in ("low", "medium", "high"):
+            payload["reasoning_effort"] = thinking_mode
+        elif thinking_mode == "max":
+            payload["reasoning_effort"] = "high"
+
+        budget = get_thinking_budget(thinking_mode)
+        if budget >= 1024:
+            payload["thinking"] = {
+                "type": "enabled",
+                "budget_tokens": budget
+            }
 
     watcher = AsyncInputQueueWatcher()
 
@@ -85,6 +123,14 @@ def call_ai(messages, config):
             resp = session.post(url, headers=headers, json=payload, timeout=60)
             if resp.status_code == 200:
                 result_container["data"] = resp.json()
+            elif resp.status_code == 400 and any(k in resp.text.lower() for k in ("reasoning", "thinking", "extra_forbidden", "unrecognized")):
+                # Graceful fallback: retry without reasoning/thinking parameter if endpoint rejects them
+                fallback_payload = {k: v for k, v in payload.items() if k not in ("reasoning_effort", "thinking", "reasoning")}
+                fb_resp = session.post(url, headers=headers, json=fallback_payload, timeout=60)
+                if fb_resp.status_code == 200:
+                    result_container["data"] = fb_resp.json()
+                else:
+                    result_container["error"] = f"HTTP {fb_resp.status_code}: {fb_resp.text}"
             else:
                 result_container["error"] = f"HTTP {resp.status_code}: {resp.text}"
         except requests.exceptions.Timeout:
@@ -97,14 +143,20 @@ def call_ai(messages, config):
     worker_t = threading.Thread(target=fetch_worker, daemon=True)
     worker_t.start()
 
+    if model_supports_thinking and thinking_mode != "off":
+        th_tag = thinking_mode.capitalize()
+        status_label = f"[bold cyan]Thinking ({th_tag})...[/bold cyan] [dim](ESC: Stop)[/dim]"
+    else:
+        status_label = "[bold cyan]Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"
+
     try:
-        with console.status("[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]") as status:
+        with console.status(status_label) as status:
             def update_thinking_status():
                 txt = watcher.get_buffer_text()
                 if txt:
-                    status.update(f"[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]\n  [bold cyan]r.outers[/bold cyan] [dim]>[/dim] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                    status.update(f"{status_label}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
                 else:
-                    status.update("[bold cyan]RTS > Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]")
+                    status.update(status_label)
 
             watcher.on_change = update_thinking_status
             watcher.start()

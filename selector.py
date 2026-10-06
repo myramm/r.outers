@@ -375,7 +375,17 @@ def select_model_interactive(current_config):
                     update_active_model(target_model_id)
                     current_config["model"] = target_model_id
 
-                console.print(f"[bold green]✔ Model aktif:[/bold green] [bold yellow]{chosen['name']}[/bold yellow] ([dim]{chosen['provider_name']}[/dim])")
+                from config import is_thinking_supported
+                if is_thinking_supported(target_model_id):
+                    # Prompt thinking level for this reasoning model directly
+                    current_config = select_thinking_interactive(
+                        current_config,
+                        model_name_display=chosen['name'],
+                        provider_name_display=chosen['provider_name'],
+                        is_inline=True
+                    )
+                else:
+                    console.print(f"[bold green]✔ Model aktif:[/bold green] [bold yellow]{chosen['name']}[/bold yellow] ([dim]{chosen['provider_name']}[/dim])")
                 return current_config
 
             elif k and isinstance(k, str) and not k.startswith(('UP', 'DOWN', 'LEFT', 'RIGHT', 'ESC', 'TAB', 'ENTER', 'BACKSPACE', 'CTRL_', 'SHIFT_', 'PAGE_')):
@@ -389,3 +399,173 @@ def select_model_interactive(current_config):
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
     return current_config
+
+def select_thinking_interactive(current_config=None, model_name_display=None, provider_name_display=None, is_inline=False):
+    if not sys.stdin.isatty():
+        from config import get_active_config
+        return get_active_config()
+
+    from config import get_thinking_mode, update_thinking_mode, get_active_config, is_thinking_supported
+    from rich.prompt import Prompt
+
+    if current_config is None:
+        current_config = get_active_config()
+
+    current_mode = str(get_thinking_mode()).lower()
+    curr_model = current_config.get("model", "free-model")
+    model_supports_thinking = is_thinking_supported(curr_model)
+
+    if is_inline:
+        menu_items = [
+            {"id": "off", "name": "Off", "desc": "Tanpa thinking (Respons instan, hemat token)", "tag": "OFF", "color": "\033[90m"},
+            {"id": "low", "name": "Low", "desc": "Thinking ringan (~2k token, penalaran cepat)", "tag": "LOW", "color": "\033[1;36m"},
+            {"id": "medium", "name": "Medium", "desc": "Thinking seimbang (~8k token, logika analitis)", "tag": "MED", "color": "\033[1;34m"},
+            {"id": "high", "name": "High", "desc": "Thinking mendalam (~16k token, arsitektur & coding)", "tag": "HIGH", "color": "\033[1;35m"},
+            {"id": "max", "name": "Max", "desc": "Thinking maksimal (~32k token, deep reasoning)", "tag": "MAX", "color": "\033[1;31m"},
+            {"id": "custom", "name": "Custom", "desc": "Tentukan budget token manual...", "tag": "EDIT", "color": "\033[1;33m"},
+            {"id": "back", "name": "⏭️ Lewati / Gunakan High", "desc": "Gunakan level thinking bawaan (High)", "tag": "", "color": "\033[90m"}
+        ]
+    else:
+        menu_items = [
+            {"id": "off", "name": "Off", "desc": "Tanpa thinking (Respons instan, hemat token)", "tag": "OFF", "color": "\033[90m"},
+            {"id": "low", "name": "Low", "desc": "Thinking ringan (~2k token, penalaran cepat)", "tag": "LOW", "color": "\033[1;36m"},
+            {"id": "medium", "name": "Medium", "desc": "Thinking seimbang (~8k token, logika analitis)", "tag": "MED", "color": "\033[1;34m"},
+            {"id": "high", "name": "High", "desc": "Thinking mendalam (~16k token, arsitektur & coding)", "tag": "HIGH", "color": "\033[1;35m"},
+            {"id": "max", "name": "Max", "desc": "Thinking maksimal (~32k token, deep reasoning)", "tag": "MAX", "color": "\033[1;31m"},
+            {"id": "custom", "name": "Custom", "desc": "Tentukan budget token manual...", "tag": "EDIT", "color": "\033[1;33m"},
+            {"id": "back", "name": "⬅️ Batal / Kembali", "desc": "Kembali ke menu", "tag": "", "color": "\033[90m"}
+        ]
+
+    selected_idx = 3  # default high
+    for idx, it in enumerate(menu_items):
+        if it["id"] == current_mode:
+            selected_idx = idx
+            break
+        elif it["id"] == "custom" and current_mode not in ["off", "low", "medium", "high", "max"] and current_mode:
+            selected_idx = idx
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+
+    sys.stdout.write("\033[?1049h\033[?25l\033[H\033[2J")
+    sys.stdout.flush()
+
+    chosen = None
+    try:
+        tty.setraw(fd)
+        sys.stdout.write("\033[?7l")
+        sys.stdout.flush()
+
+        while True:
+            try:
+                term_cols = os.get_terminal_size().columns
+            except Exception:
+                term_cols = 50
+            width = max(38, min(term_cols - 2, 64))
+
+            lines = []
+            if model_name_display:
+                title_tag = f"🧠  Pilih Thinking: {model_name_display}"
+            else:
+                title_tag = "🧠  Mode Thinking / Reasoning (OpenCode)"
+            
+            if len(title_tag) > width - 8:
+                title_tag = title_tag[:width - 11] + ".."
+            gap_t = max(1, width - len(title_tag) - 7)
+            lines.append(f"\033[1;36m{title_tag}\033[0m{' ' * gap_t}\033[90m[Esc]\033[0m")
+            
+            # Show model compatibility status in subheader
+            short_m = (model_name_display or curr_model).split('/')[-1]
+            if len(short_m) > width - 24:
+                short_m = short_m[:width - 27] + ".."
+            if model_supports_thinking:
+                status_sub = f"\033[90mModel: \033[1;37m{short_m}\033[0m \033[1;32m[✔ Reasoning Supported]\033[0m"
+            else:
+                status_sub = f"\033[90mModel: \033[1;37m{short_m}\033[0m \033[90m[○ Non-Reasoning]\033[0m"
+            
+            lines.append(status_sub)
+            lines.append(f"\033[90m{'─' * width}\033[0m")
+            lines.append("")
+
+            for idx, item in enumerate(menu_items):
+                is_sel = (idx == selected_idx)
+                i_id = item["id"]
+                is_active = (current_mode == i_id) or (i_id == "custom" and current_mode not in ["off", "low", "medium", "high", "max"] and current_mode)
+
+                radio = "●" if is_active else "○"
+                pfx = "▸ " if is_sel else "  "
+                
+                tag_badge = f"{item['color']}[{item['tag']}]\033[0m " if item["tag"] else ""
+                act_tag = " \033[1;32m(Aktif)\033[0m" if is_active else ""
+                
+                avail_w = width - 4
+                if item["id"] == "back":
+                    row_txt = f"{pfx}{item['name']}"
+                elif item["id"] == "custom" and current_mode not in ["off", "low", "medium", "high", "max"] and current_mode:
+                    row_txt = f"{pfx}{radio} {tag_badge}\033[1mCustom ({current_mode} tok)\033[0m{act_tag}"
+                else:
+                    row_txt = f"{pfx}{radio} {tag_badge}\033[1m{item['name']}\033[0m{act_tag}"
+
+                desc_line = f"     \033[90m{item['desc']}\033[0m"
+
+                if is_sel:
+                    lines.append(f"\033[7m\033[1m {row_txt:<{avail_w}} \033[0m")
+                    if item["id"] != "back":
+                        lines.append(f"\033[7m {desc_line:<{avail_w}} \033[0m")
+                else:
+                    lines.append(f" {row_txt}")
+                    if item["id"] != "back":
+                        lines.append(f" {desc_line}")
+                lines.append("")
+
+            lines.append(f"\033[90m{'─' * width}\033[0m")
+            hint_esc = "Esc Lewati" if is_inline else "Esc Batal"
+            lines.append(f" \033[1;33m↑↓/Tab\033[0m \033[90mPilih\033[0m  \033[1;32mEnter\033[0m \033[90mPilih\033[0m  \033[90m{hint_esc}\033[0m")
+
+            out_buf = ["\033[H"]
+            for l in lines:
+                out_buf.append(f"\r\033[2K{l}\r\n")
+            out_buf.append("\r\033[J")
+            sys.stdout.write("".join(out_buf))
+            sys.stdout.flush()
+
+            k = read_key_raw_fd(fd)
+            if k in ('ESC', 'CTRL_C'):
+                chosen = "back"
+                break
+            elif k in ('UP', 'SHIFT_TAB'):
+                selected_idx = (selected_idx - 1) % len(menu_items)
+            elif k in ('DOWN', 'TAB'):
+                selected_idx = (selected_idx + 1) % len(menu_items)
+            elif k == 'ENTER':
+                chosen = menu_items[selected_idx]["id"]
+                break
+    finally:
+        sys.stdout.write("\033[?7h\033[?1049l\033[?25h")
+        sys.stdout.flush()
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    disp_m_name = model_name_display or curr_model
+    disp_p_name = provider_name_display or current_config.get("provider_name", "")
+
+    if chosen == "back" or not chosen:
+        if is_inline:
+            # User skipped thinking selector, keep current/default thinking mode
+            th = current_mode.upper() if current_mode else "HIGH"
+            console.print(f"[bold green]✔ Model aktif:[/bold green] [bold yellow]{disp_m_name}[/bold yellow] [dim]({disp_p_name})[/dim] • [bold magenta]Thinking: {th}[/bold magenta]\n")
+        return current_config
+    elif chosen == "custom":
+        custom_val = Prompt.ask("\n[bold cyan]Masukkan budget token thinking (contoh: 4096, 8192, 32768)[/bold cyan]").strip()
+        if custom_val.isdigit() and int(custom_val) > 0:
+            update_thinking_mode(custom_val)
+            current_config["thinking_mode"] = custom_val
+            console.print(f"[bold green]✔ Model aktif:[/bold green] [bold yellow]{disp_m_name}[/bold yellow] [dim]({disp_p_name})[/dim] • [bold magenta]Thinking: {custom_val} tokens[/bold magenta]\n")
+        else:
+            console.print(f"[bold green]✔ Model aktif:[/bold green] [bold yellow]{disp_m_name}[/bold yellow] [dim]({disp_p_name})[/dim]\n")
+        return current_config
+    else:
+        update_thinking_mode(chosen)
+        current_config["thinking_mode"] = chosen
+        console.print(f"[bold green]✔ Model aktif:[/bold green] [bold yellow]{disp_m_name}[/bold yellow] [dim]({disp_p_name})[/dim] • [bold magenta]Thinking: {chosen.upper()}[/bold magenta]\n")
+        return current_config
+

@@ -294,20 +294,53 @@ def format_dynamic_model_label(model_name, provider_name="clouvia", max_len=30):
         clean = raw_id.replace("-", " ").replace("_", " ").title()
     return truncate_text(clean, max_len)
 
-def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_col=0, term_cols=None):
+def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high", current_input="", cursor_col=0, term_cols=None):
     scheme = THEMES_MAP.get(theme_id, THEMES_MAP["terminal"])
     p = scheme["palette"]
     perm_str = "Auto" if auto_approve else "Ask"
     
+    from config import is_thinking_supported
+    model_supports_thinking = is_thinking_supported(model_name)
+
+    # Format thinking mode tag
+    th_m = str(thinking_mode).lower()
+    if not model_supports_thinking:
+        think_badge = f"{p['dim']}Think: N/A\033[0m"
+        think_short = f"{p['dim']}N/A\033[0m"
+    elif th_m == "off":
+        think_badge = f"{p['dim']}Think: Off\033[0m"
+        think_short = f"{p['dim']}Off\033[0m"
+    elif th_m == "low":
+        think_badge = "\033[1;36mThink: Low\033[0m"
+        think_short = "\033[1;36mLow\033[0m"
+    elif th_m == "medium":
+        think_badge = "\033[1;34mThink: Med\033[0m"
+        think_short = "\033[1;34mMed\033[0m"
+    elif th_m == "high":
+        think_badge = "\033[1;35mThink: High\033[0m"
+        think_short = "\033[1;35mHigh\033[0m"
+    elif th_m == "max":
+        think_badge = "\033[1;31mThink: Max\033[0m"
+        think_short = "\033[1;31mMax\033[0m"
+    else:
+        # custom budget token (e.g. 4096 -> 4k)
+        if th_m.isdigit() and int(th_m) >= 1000:
+            k_val = int(th_m) // 1000
+            think_badge = f"\033[1;33mThink: {k_val}k\033[0m"
+            think_short = f"\033[1;33m{k_val}k\033[0m"
+        else:
+            think_badge = f"\033[1;33mThink: {th_m}\033[0m"
+            think_short = f"\033[1;33m{th_m}\033[0m"
+
     cols = term_cols if term_cols is not None else get_terminal_width()
     safe_w = get_safe_width(cols)
     
     divider = f"{p['dim']}{'─' * safe_w}\033[0m"
     
-    # Prompt prefix: "r.outers > "
-    prefix_str = "r.outers > "
+    # Prompt prefix: "> "
+    prefix_str = "> "
     prefix_len = len(prefix_str)
-    prefix_rendered = f"{p['prompt_user']}r.outers\033[0m \033[90m>\033[0m "
+    prefix_rendered = f"{p['prompt_user']}>\033[0m "
     
     # Safe input windowing so long text never causes accidental line wraps on zoom
     max_input_w = max(8, safe_w - prefix_len - 2)
@@ -333,10 +366,14 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
     input_rendered = f"{prefix_rendered}{disp_before}{cursor_block}{disp_after}"
     
     # Dynamic status footer formatting that always fits within safe_w on exactly 1 line
-    if safe_w >= 45:
-        avail_for_model = safe_w - 18
+    if safe_w >= 54:
+        avail_for_model = safe_w - 32
         m_lbl = format_dynamic_model_label(model_name, provider_name, avail_for_model)
-        status_footer = f"\033[1;33m⚡\033[0m {p['prompt_user']}{m_lbl}\033[0m {p['dim']}·\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}·\033[0m \033[32mReady\033[0m"
+        status_footer = f"\033[1;33m⚡\033[0m {p['prompt_user']}{m_lbl}\033[0m {p['dim']}·\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}·\033[0m {think_badge} {p['dim']}·\033[0m \033[32mReady\033[0m"
+    elif safe_w >= 40:
+        avail_for_model = safe_w - 22
+        m_lbl = format_dynamic_model_label(model_name, provider_name, avail_for_model)
+        status_footer = f"\033[1;33m⚡\033[0m {p['prompt_user']}{m_lbl}\033[0m {p['dim']}·\033[0m {p['diff_add']}{perm_str}\033[0m {p['dim']}·\033[0m {think_short}"
     elif safe_w >= 28:
         avail_for_model = safe_w - 12
         m_lbl = format_dynamic_model_label(model_name, provider_name, avail_for_model)
@@ -354,15 +391,15 @@ def render_prompt_layout(style_id="box", theme_id="terminal", provider_name="clo
         "div_width": safe_w
     }
 
-def render_input_area(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_col=0, term_cols=None, is_first_render=False):
+def render_input_area(style_id="box", theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high", current_input="", cursor_col=0, term_cols=None, is_first_render=False):
     """
     Dedicated single renderer for the complete 4-line Antigravity input box:
     Line 1: Top divider
     Line 2: r.outers > typed_text █
     Line 3: Bottom divider
-    Line 4: ⚡ Nemotron 3 Super 120B · Auto · Ready
+    Line 4: ⚡ Nemotron 3 Super 120B · Auto · Think: High · Ready
     """
-    layout = render_prompt_layout(style_id, theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_input, cursor_col=cursor_col, term_cols=term_cols)
+    layout = render_prompt_layout(style_id, theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, thinking_mode=thinking_mode, current_input=current_input, cursor_col=cursor_col, term_cols=term_cols)
     cursor_x = layout.get("cursor_col", cursor_col)
     cursor_move = f"\033[{cursor_x}C" if cursor_x > 0 else ""
     prefix_jump = "" if is_first_render else "\033[1A\r"

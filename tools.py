@@ -377,7 +377,7 @@ def execute_tool(name, args, auto_approve=False):
                         elapsed = time.time() - start_time
                         txt = watcher.get_buffer_text()
                         if txt:
-                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n  [bold cyan]r.outers[/bold cyan] [dim]>[/dim] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
                         else:
                             status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]")
 

@@ -6,15 +6,17 @@ from rich.prompt import Prompt
 from rich.panel import Panel
 from rich.table import Table
 
-from ui import console, show_banner, print_markdown
+from ui import console, show_banner, print_markdown, show_subtle_tip
 from config import (
     get_active_config, update_active_model, switch_provider,
-    add_new_provider, load_full_config, save_full_config, PRESET_PROVIDERS
+    add_new_provider, load_full_config, save_full_config, PRESET_PROVIDERS,
+    THINKING_MODES, get_thinking_mode, update_thinking_mode, get_thinking_budget,
+    is_thinking_supported
 )
 from memory import load_memory
 from tools import execute_tool
 from client import build_system_prompt, call_ai
-from selector import select_model_interactive
+from selector import select_model_interactive, select_thinking_interactive
 from settings import show_settings_hub
 from slash_prompt import get_smart_input
 from queue_manager import get_next_queued_message, has_queued_messages
@@ -85,7 +87,10 @@ def handle_model_menu(config):
             return config
         update_active_model(new_m)
         config["model"] = new_m
-        console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
+        if is_thinking_supported(new_m):
+            config = select_thinking_interactive(config, model_name_display=new_m, is_inline=True)
+        else:
+            console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
         return config
 
     # Check numeric choice strictly
@@ -95,7 +100,10 @@ def handle_model_menu(config):
             new_m = rec_models[idx]
             update_active_model(new_m)
             config["model"] = new_m
-            console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
+            if is_thinking_supported(new_m):
+                config = select_thinking_interactive(config, model_name_display=new_m, is_inline=True)
+            else:
+                console.print(f"[bold green]✔ Model aktif diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]")
             return config
         else:
             console.print(f"[bold red]❌ Input tidak valid! Pilihan nomor harus antara 1 sampai {len(rec_models)}.[/bold red]")
@@ -172,10 +180,18 @@ def handle_command(user_input, config, messages, auto_approve):
         from queue_manager import has_queued_messages
         active_prov = config.get("provider_id", "clouvia")
         curr_model = config.get('model', 'free-model')
+        supports_th = is_thinking_supported(curr_model)
+        if supports_th:
+            th_mode = str(config.get("thinking_mode", "high")).lower()
+            th_budget = get_thinking_budget(th_mode)
+            th_str = f"{th_mode.upper()} (~{th_budget:,} token budget)" if th_mode != "off" else "OFF (Tanpa Reasoning)"
+        else:
+            th_str = f"[dim]N/A (Model '{curr_model}' adalah non-reasoning)[/dim]"
         queue_status = "[bold green]1+ pesan antrean menunggu[/bold green]" if has_queued_messages() else "[dim]Kosong (Ready)[/dim]"
         console.print(Panel(f"""[bold]Informasi Status RTS Agent:[/bold]
 • Model Aktif    : [bold yellow]{curr_model}[/bold yellow]
 • Provider API   : [bold cyan]{active_prov}[/bold cyan]
+• Mode Thinking  : [bold magenta]{th_str}[/bold magenta]
 • Mode Izin      : [{'green' if auto_approve else 'yellow'}]{'Always Allow (Auto)' if auto_approve else 'Ask Approval'}[/]
 • Antrean Pesan  : {queue_status}
 • Status Eksekusi: [bold green]Ready / Standby[/bold green]
@@ -191,15 +207,41 @@ def handle_command(user_input, config, messages, auto_approve):
     elif user_input.startswith("/"):
         parts = user_input.strip().split(maxsplit=1)
         cmd_lower = parts[0].lower()
+        curr_model = config.get('model', 'free-model')
+        supports_th = is_thinking_supported(curr_model)
         
         if cmd_lower in ["/clear", "/cls"]:
+            th_mode = config.get("thinking_mode", "high")
             messages.clear()
-            messages.append({"role": "system", "content": build_system_prompt()})
+            messages.append({"role": "system", "content": build_system_prompt(thinking_mode=th_mode, model_id=curr_model)})
             sys.stdout.write("\033[H\033[2J\033[3J")
             sys.stdout.flush()
             os.system("clear")
             show_banner()
             console.print("[bold green]✔ Riwayat percakapan & layar dibersihkan. Konteks AI telah direfresh.[/bold green]\n")
+            return config, auto_approve
+        elif cmd_lower in ["/thinking", "/think", "/t", "/reasoning"]:
+            if len(parts) > 1 and parts[1].strip():
+                arg = parts[1].strip().lower()
+                if arg in THINKING_MODES or (arg.isdigit() and int(arg) > 0):
+                    update_thinking_mode(arg)
+                    config["thinking_mode"] = arg
+                    for m in messages:
+                        if m.get("role") == "system":
+                            m["content"] = build_system_prompt(thinking_mode=arg, model_id=curr_model)
+                    console.print(f"[bold green]✔ Mode Thinking diubah ke:[/bold green] [bold yellow]{arg.upper()}[/bold yellow]")
+                    if not supports_th:
+                        console.print(f"[dim]ℹ Catatan: Model aktif ('{curr_model}') tidak memiliki native reasoning. Mode thinking akan aktif otomatis saat menggunakan model reasoning (DeepSeek R1, Claude Thinking, o1/o3/o4, QwQ, dll).[/dim]\n")
+                    else:
+                        console.print("")
+                else:
+                    console.print(f"[bold red]❌ Mode thinking '{arg}' tidak valid. Pilihan: off, low, medium, high, max, atau angka token (misal: 4096).[/bold red]\n")
+            else:
+                config = select_thinking_interactive(config)
+                th_mode = config.get("thinking_mode", "high")
+                for m in messages:
+                    if m.get("role") == "system":
+                        m["content"] = build_system_prompt(thinking_mode=th_mode, model_id=curr_model)
             return config, auto_approve
         elif cmd_lower in ["/style", "/styles", "/theme", "/themes", "/prompt-style"]:
             from styles import select_style_and_theme_interactive
@@ -210,7 +252,10 @@ def handle_command(user_input, config, messages, auto_approve):
                 new_m = parts[1].strip()
                 update_active_model(new_m)
                 config["model"] = new_m
-                console.print(f"[bold green]✔ Model diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]\n")
+                if is_thinking_supported(new_m):
+                    config = select_thinking_interactive(config, model_name_display=new_m, is_inline=True)
+                else:
+                    console.print(f"[bold green]✔ Model diubah ke:[/bold green] [bold yellow]{new_m}[/bold yellow]\n")
             else:
                 config = select_model_interactive(config)
             return config, auto_approve
@@ -252,8 +297,9 @@ def handle_command(user_input, config, messages, auto_approve):
             return config, auto_approve
         elif cmd_lower == "/help":
             console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif & antrean pesan
+• [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif, mode thinking, & antrean pesan
 • [bold cyan]stop[/bold cyan] [dim](atau /stop, cancel)[/dim]: Hentikan atau batalkan task aktif
+• [bold cyan]/thinking[/bold cyan] [mode]     : Mode Thinking (off, low, medium, high, max, custom) (/think, /t)
 • [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim]   : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
 • [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]    : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)
 • [bold cyan]/model[/bold cyan] [nama]         : Pilih / ganti model AI (atau ketik /m)
@@ -295,6 +341,29 @@ def handle_command(user_input, config, messages, auto_approve):
 
         messages.append(msg)
 
+        # 1. Extract reasoning / thinking if available
+        reasoning = (msg.get("reasoning_content") or msg.get("reasoning") or "").strip()
+        content = (msg.get("content") or "").strip()
+
+        if not reasoning and "<think>" in content and "</think>" in content:
+            import re
+            m = re.search(r"<think>(.*?)</think>", content, flags=re.DOTALL)
+            if m:
+                reasoning = m.group(1).strip()
+                content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
+
+        # Render thinking process if present and thinking mode is not OFF
+        th_mode_str = str(config.get("thinking_mode", "high")).lower()
+        if reasoning and th_mode_str != "off":
+            th_mode_display = th_mode_str.upper()
+            console.print(Panel(
+                f"[dim italic]{reasoning}[/dim italic]",
+                title=f"🧠 Thinking Process ({th_mode_display})",
+                title_align="left",
+                border_style="cyan dim",
+                padding=(0, 1)
+            ))
+
         if msg.get("tool_calls"):
             for tool in msg["tool_calls"]:
                 fn_name = tool.get("function", {}).get("name", "")
@@ -316,12 +385,11 @@ def handle_command(user_input, config, messages, auto_approve):
                 })
             continue
         else:
-            content = msg.get("content") or ""
-            reasoning = msg.get("reasoning_content") or ""
             if content:
                 print_markdown(content)
-            elif reasoning:
-                print_markdown(f"*[dim]Alur Berpikir AI / Reasoning:[/dim]*\n\n{reasoning}")
+                show_subtle_tip()
+            elif not reasoning:
+                pass
             break
 
     return config, auto_approve
@@ -331,27 +399,30 @@ def main():
     full_cfg = load_full_config()
     config = get_active_config()
     auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
-
-    messages = [{"role": "system", "content": build_system_prompt()}]
+    curr_model = config.get('model', 'free-model')
+    thinking_mode = config.get("thinking_mode", "high")
+    messages = [{"role": "system", "content": build_system_prompt(thinking_mode=thinking_mode, model_id=curr_model)}]
 
     while True:
         full_cfg = load_full_config()
+        config = get_active_config()
         auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
         active_prov = full_cfg.get("active_provider", "clouvia")
         curr_model = config.get('model', 'free-model')
+        thinking_mode = config.get("thinking_mode", "high")
 
         # 1. IDLE: Check queued message or get interactive input
         queued_msg = get_next_queued_message()
         if queued_msg:
             user_input = queued_msg
             _, cur_theme = get_current_style_settings()
-            layout = render_prompt_layout("box", cur_theme, provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, current_input=user_input, cursor_col=len(user_input))
-            prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
-            sys.stdout.write(f"\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\033[1;37m{user_input}\033[0m\r\n")
+            layout = render_prompt_layout("box", cur_theme, provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, thinking_mode=thinking_mode, current_input=user_input, cursor_col=len(user_input))
+            prefix_disp = layout.get('prefix_rendered', '> ')
+            sys.stdout.write(f"\033[2K{prefix_disp}\033[1;37m{user_input}\033[0m\r\n\033[2K{layout['divider']}\r\n")
             sys.stdout.flush()
         else:
             try:
-                user_input = get_smart_input(provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve)
+                user_input = get_smart_input(provider_name=active_prov, model_name=curr_model, auto_approve=auto_approve, thinking_mode=thinking_mode)
             except (KeyboardInterrupt, EOFError):
                 console.print("\n[yellow]Keluar...[/yellow]")
                 break

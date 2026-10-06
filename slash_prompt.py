@@ -23,6 +23,7 @@ from styles import (
 SLASH_COMMANDS = [
     {"cmd": "/status", "desc": "Lihat status aktif agent, antrean task, dan model"},
     {"cmd": "/stop", "desc": "Hentikan atau batalkan task yang sedang aktif (/cancel)"},
+    {"cmd": "/thinking", "desc": "Mode Thinking/Reasoning (off, low, medium, high, max, custom)"},
     {"cmd": "/setup", "desc": "Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)"},
     {"cmd": "/theme", "desc": "Pilih Color Scheme (terminal, light, dark, solarized, tokyo night)"},
     {"cmd": "/model", "desc": "Pilih dan ganti model AI aktif (/m)"},
@@ -171,10 +172,10 @@ def clear_popup_lines(count):
     sys.stdout.write("\033[3B\033[J\033[3A\r")
     sys.stdout.flush()
 
-def render_input(theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, current_input="", cursor_pos=0, term_cols=80, is_first_render=False):
-    return render_input_area("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, current_input=current_input, cursor_col=cursor_pos, term_cols=term_cols, is_first_render=is_first_render)
+def render_input(theme_id="terminal", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high", current_input="", cursor_pos=0, term_cols=80, is_first_render=False):
+    return render_input_area("box", theme_id, provider_name=provider_name, model_name=model_name, auto_approve=auto_approve, thinking_mode=thinking_mode, current_input=current_input, cursor_col=cursor_pos, term_cols=term_cols, is_first_render=is_first_render)
 
-def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia", model_name="free-model", auto_approve=True):
+def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia", model_name="free-model", auto_approve=True, thinking_mode="high"):
     global _terminal_resized
     _terminal_resized = False
     _, theme_id = get_current_style_settings()
@@ -237,6 +238,7 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     provider_name=provider_name,
                     model_name=model_name,
                     auto_approve=auto_approve,
+                    thinking_mode=thinking_mode,
                     current_input=current_text,
                     cursor_pos=cursor_pos,
                     term_cols=term_cols,
@@ -286,8 +288,8 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                 if last_popup_lines_count > 0:
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
-                prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}{current_text}\r\n\033[2K\r\n\033[2K\033[1A\r")
+                prefix_disp = layout.get('prefix_rendered', '> ')
+                sys.stdout.write(f"\033[1A\r\033[2K{prefix_disp}{current_text}\r\n\033[2K{layout['divider']}\r\n\033[2K\r\n\033[2K\033[1A\r")
                 sys.stdout.flush()
                 return ""
 
@@ -296,8 +298,8 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     if last_popup_lines_count > 0:
                         clear_popup_lines(last_popup_lines_count)
                         last_popup_lines_count = 0
-                    prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
-                    sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\r\n\033[2K\r\n\033[2K\033[1A\r")
+                    prefix_disp = layout.get('prefix_rendered', '> ')
+                    sys.stdout.write(f"\033[1A\r\033[2K{prefix_disp}\r\n\033[2K{layout['divider']}\r\n\033[2K\r\n\033[2K\033[1A\r")
                     sys.stdout.flush()
                     raise EOFError()
 
@@ -362,9 +364,9 @@ def get_smart_input(prompt_display_str="", sub_info="", provider_name="clouvia",
                     clear_popup_lines(last_popup_lines_count)
                     last_popup_lines_count = 0
                 
-                # Finalize: leave clean top divider + user input line in history
-                prefix_disp = layout.get('prefix_rendered', 'r.outers > ')
-                sys.stdout.write(f"\033[1A\r\033[2K{layout['divider']}\r\n\033[2K{prefix_disp}\033[1;37m{current_text}\033[0m\r\n\033[2K\r\n\033[2K\033[1A\r")
+                # Finalize: leave clean user input line + bottom divider in history
+                prefix_disp = layout.get('prefix_rendered', '> ')
+                sys.stdout.write(f"\033[1A\r\033[2K{prefix_disp}\033[1;37m{current_text}\033[0m\r\n\033[2K{layout['divider']}\r\n\033[2K\r\n\033[2K\033[1A\r")
                 sys.stdout.flush()
                 
                 res = current_text.strip()

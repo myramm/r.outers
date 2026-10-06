@@ -74,6 +74,91 @@ def save_full_config(config_data):
     with open(CONFIG_FILE, "w") as f:
         json.dump(config_data, f, indent=2)
 
+THINKING_MODES = {
+    "off": {
+        "id": "off",
+        "label": "Off",
+        "desc": "Tanpa thinking (Respons instan, hemat token)",
+        "budget_tokens": 0,
+        "reasoning_effort": "none",
+        "tag": "OFF",
+        "color": "\033[90m"
+    },
+    "low": {
+        "id": "low",
+        "label": "Low",
+        "desc": "Thinking ringan (~2k token, penalaran cepat)",
+        "budget_tokens": 2048,
+        "reasoning_effort": "low",
+        "tag": "LOW",
+        "color": "\033[1;36m"
+    },
+    "medium": {
+        "id": "medium",
+        "label": "Medium",
+        "desc": "Thinking seimbang (~8k token, logika analitis)",
+        "budget_tokens": 8192,
+        "reasoning_effort": "medium",
+        "tag": "MED",
+        "color": "\033[1;34m"
+    },
+    "high": {
+        "id": "high",
+        "label": "High",
+        "desc": "Thinking mendalam (~16k token, arsitektur & coding)",
+        "budget_tokens": 16384,
+        "reasoning_effort": "high",
+        "tag": "HIGH",
+        "color": "\033[1;35m"
+    },
+    "max": {
+        "id": "max",
+        "label": "Max",
+        "desc": "Thinking maksimal (~32k token, deep reasoning & proof)",
+        "budget_tokens": 32768,
+        "reasoning_effort": "high",
+        "tag": "MAX",
+        "color": "\033[1;31m"
+    }
+}
+
+REASONING_MODEL_KEYWORDS = [
+    "thinking", "reason", "r1", "qwq", "o1", "o3", "o4", "gpt-5",
+    "claude-3-7", "claude-sonnet-5", "claude-opus-4.8",
+    "gemini-2.0-flash-thinking", "gemini-2.5-flash-thinking", "gemini-3.8-flash-high",
+    "nemotron", "cosmos-reason", "qwen-3.8-max-thinking", "glm5.3-thinking",
+    "deepseek-v4-pro", "deepseek-r1", "coding-high", "atria-dawn"
+]
+
+def is_thinking_supported(model_id):
+    if not model_id:
+        return False
+    m_lower = str(model_id).lower()
+    for kw in REASONING_MODEL_KEYWORDS:
+        if kw in m_lower:
+            return True
+    return False
+
+def get_thinking_mode():
+    full_cfg = load_full_config()
+    return full_cfg.get("thinking_mode", "high")
+
+def update_thinking_mode(mode):
+    full_cfg = load_full_config()
+    full_cfg["thinking_mode"] = str(mode).lower()
+    save_full_config(full_cfg)
+    return full_cfg["thinking_mode"]
+
+def get_thinking_budget(mode_str):
+    mode_str = str(mode_str).lower()
+    if mode_str in THINKING_MODES:
+        return THINKING_MODES[mode_str]["budget_tokens"]
+    try:
+        val = int(mode_str)
+        return max(0, val)
+    except Exception:
+        return 16384
+
 def get_active_config():
     full_cfg = load_full_config()
     active_key = full_cfg.get("active_provider", "nvidia")
@@ -113,6 +198,7 @@ def get_active_config():
         "timeout": curr.get("timeout", 180),
         "temperature": curr.get("temperature", 0.2),
         "max_tokens": curr.get("max_tokens", 8192),
+        "thinking_mode": full_cfg.get("thinking_mode", curr.get("thinking_mode", "high")),
         "settings": full_cfg.get("settings", {})
     }
 
@@ -283,6 +369,7 @@ def switch_provider():
 def setup_initial_config():
     return {
         "active_provider": "clouvia",
+        "thinking_mode": "high",
         "providers": {
             "clouvia": {
                 "name": "Clouvia Router",

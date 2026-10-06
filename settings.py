@@ -145,13 +145,14 @@ def show_settings_hub(current_config, auto_approve_ref=None):
         from client import get_available_skills_list
         total_skills = len(get_available_skills_list())
 
-        from styles import get_current_style_settings, select_style_and_theme_interactive
-        cur_style, cur_theme = get_current_style_settings()
+        from config import get_thinking_mode
+        thinking_mode = str(get_thinking_mode()).capitalize()
 
         items = [
             {"id": "api_key", "label": "🔑 Kelola API Key", "status": f"{active_prov}: {key_status}"},
             {"id": "provider", "label": "📡 Ganti / Tambah Provider", "status": f"[{active_prov}]"},
             {"id": "model", "label": "🤖 Pilih Model AI", "status": f"[{curr_model}]"},
+            {"id": "thinking", "label": "🧠 Mode Thinking (Reasoning)", "status": f"[{thinking_mode}]"},
             {"id": "style", "label": "🎨 Color Scheme & Style", "status": f"[{cur_theme}]"},
             {"id": "skills", "label": "⚡ Kelola & Tambah Skill", "status": f"[{total_skills} Skill]"},
             {"id": "permission", "label": "🛡️ Izin Eksekusi Shell", "status": perm_status},
@@ -231,6 +232,10 @@ def show_settings_hub(current_config, auto_approve_ref=None):
         elif chosen_action == "model":
             from selector import select_model_interactive
             current_config = select_model_interactive(get_active_config())
+
+        elif chosen_action == "thinking":
+            from selector import select_thinking_interactive
+            current_config = select_thinking_interactive(get_active_config())
 
         elif chosen_action == "style":
             from styles import select_style_and_theme_interactive

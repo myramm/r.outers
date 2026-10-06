@@ -76,10 +76,10 @@ class AsyncInputQueueWatcher:
                 p = {"prompt_user": "\033[1;36m"}
                 safe_w = 80
 
-            max_w = max(8, safe_w - 14)
+            max_w = max(8, safe_w - 4)
             disp = text[-max_w:] if len(text) > max_w else text
             user_color = p.get('prompt_user', '\033[1;36m')
-            prefix = f"{user_color}r.outers\033[0m \033[90m>\033[0m "
+            prefix = f"{user_color}>\033[0m "
             sys.stdout.write(f"\r\033[2K{prefix}\033[1;37m{disp}\033[0m\033[42m \033[0m")
             sys.stdout.flush()
             self._directly_rendered = True
