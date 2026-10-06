@@ -371,21 +371,15 @@ def execute_tool(name, args, auto_approve=False):
             start_time = time.time()
             cancelled = False
             
-            from ui import get_random_tip
-            current_tip = get_random_tip()
-            tip_start_time = time.time()
+            from ui import get_turn_tip
+            current_tip = get_turn_tip()
+            tip_line = f"  [dim]└ Tip: {current_tip}[/dim]"
 
             try:
-                with console.status(f"[bold cyan]Running command...[/bold cyan] [dim](0.0s | ESC: Stop)[/dim]\n  [dim]└ Tip: {current_tip}[/dim]") as status:
+                with console.status(f"[bold cyan]Running command...[/bold cyan] [dim](0.0s | ESC: Stop)[/dim]\n{tip_line}") as status:
                     def update_bash_status():
-                        nonlocal current_tip, tip_start_time
                         elapsed = time.time() - start_time
-                        if time.time() - tip_start_time > 4.5:
-                            current_tip = get_random_tip()
-                            tip_start_time = time.time()
-
                         txt = watcher.get_buffer_text()
-                        tip_line = f"  [dim]└ Tip: {current_tip}[/dim]"
                         if txt:
                             status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
                         else:

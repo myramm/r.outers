@@ -67,12 +67,26 @@ def print_markdown(content):
     console.print("")
     console.print(Markdown(content))
 
+_CURRENT_TURN_TIP = None
+
+def start_new_turn_tip():
+    global _CURRENT_TURN_TIP
+    _CURRENT_TURN_TIP = random.choice(RTS_TIPS)
+    return _CURRENT_TURN_TIP
+
+def get_turn_tip():
+    global _CURRENT_TURN_TIP
+    if _CURRENT_TURN_TIP is None:
+        _CURRENT_TURN_TIP = random.choice(RTS_TIPS)
+    return _CURRENT_TURN_TIP
+
 def get_random_tip():
-    return random.choice(RTS_TIPS)
+    return get_turn_tip()
 
 def show_subtle_tip():
-    tip = get_random_tip()
+    tip = get_turn_tip()
     console.print(f"\n[dim]Tip: {tip}[/dim]")
+
 
 
 

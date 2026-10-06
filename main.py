@@ -6,7 +6,7 @@ from rich.prompt import Prompt
 from rich.panel import Panel
 from rich.table import Table
 
-from ui import console, show_banner, print_markdown, show_subtle_tip
+from ui import console, show_banner, print_markdown, show_subtle_tip, start_new_turn_tip
 from config import (
     get_active_config, update_active_model, switch_provider,
     add_new_provider, load_full_config, save_full_config, PRESET_PROVIDERS,
@@ -173,6 +173,7 @@ def format_model_name(model_id):
     return " ".join(words)
 
 def handle_command(user_input, config, messages, auto_approve):
+    start_new_turn_tip()
     cmd_raw = user_input.strip().lower()
 
     # Status Command
