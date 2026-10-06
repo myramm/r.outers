@@ -341,7 +341,9 @@ def select_model_interactive(current_config):
                     if not existing_api_key:
                         from config import load_env_keys
                         env_keys = load_env_keys()
-                        if target_prov_id == "atria":
+                        if target_prov_id == "9router":
+                            existing_api_key = env_keys.get("NINEROUTER_API_KEY", env_keys.get("ROUTER9_API_KEY", env_keys.get("NINE_ROUTER_API_KEY", os.environ.get("NINEROUTER_API_KEY", os.environ.get("ROUTER9_API_KEY", os.environ.get("NINE_ROUTER_API_KEY", "")))))).strip()
+                        elif target_prov_id == "atria":
                             existing_api_key = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", "")).strip()
                         elif target_prov_id == "clouvia":
                             existing_api_key = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", "")).strip()
@@ -349,6 +351,20 @@ def select_model_interactive(current_config):
                             existing_api_key = env_keys.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", os.environ.get("NVAPI_KEY", ""))).strip()
                         elif target_prov_id == "openrouter":
                             existing_api_key = env_keys.get("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", "")).strip()
+
+                    # Jika 9router belum memiliki domain / base_url, minta user input
+                    if target_prov_id == "9router" and not prov_entry.get("base_url"):
+                        from rich.prompt import Prompt
+                        console.print("\n[bold yellow]🌐 9Router membutuhkan Domain / Base URL.[/bold yellow]")
+                        user_domain = Prompt.ask("[bold cyan]Masukkan Domain / Base URL 9Router (contoh: https://9router-production-b35d.up.railway.app)[/bold cyan]").strip()
+                        if user_domain:
+                            if not user_domain.startswith("http://") and not user_domain.startswith("https://"):
+                                user_domain = "https://" + user_domain
+                            user_domain = user_domain.rstrip("/")
+                            if not user_domain.endswith("/v1"):
+                                user_domain = f"{user_domain}/v1"
+                            prov_entry["base_url"] = user_domain
+                            console.print(f"[bold green]✔ Base URL 9Router disimpan: {user_domain}[/bold green]")
 
                     # Jika API Key masih kosong dan bukan clouvia bawaan gratis, minta user input sekali saja
                     if not existing_api_key and target_prov_id != "clouvia":

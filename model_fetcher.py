@@ -9,6 +9,10 @@ CACHE_FILE = os.path.expanduser("~/.routers_models_cache.json")
 CACHE_TTL_SECONDS = 3600  # 1 hour cache validity
 
 FALLBACK_DEFAULT_MODELS = [
+    {"id": "ag/gemini-3.7-flash-high", "name": "Gemini 3.7 Flash High (Antigravity)", "provider_id": "9router", "provider_name": "9Router", "tag": "TOP", "fav": True},
+    {"id": "ag/gemini-3.8-flash", "name": "Gemini 3.8 Flash (Antigravity)", "provider_id": "9router", "provider_name": "9Router", "tag": "FAST", "fav": True},
+    {"id": "ag/claude-sonnet-4-6", "name": "Claude Sonnet 4.6 (Antigravity)", "provider_id": "9router", "provider_name": "9Router", "tag": "REASON", "fav": True},
+    {"id": "ag/claude-opus-4-6-thinking", "name": "Claude Opus 4.6 Thinking (Antigravity)", "provider_id": "9router", "provider_name": "9Router", "tag": "TOP", "fav": True},
     {"id": "free-model", "name": "Free Router Model", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
     {"id": "auto", "name": "Auto Router", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
     {"id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
@@ -204,7 +208,9 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
         api_key = prov_cfg.get("api_key") or ""
         if not api_key:
             env_keys = load_env_keys()
-            if provider_id == "clouvia":
+            if provider_id == "9router":
+                api_key = env_keys.get("NINEROUTER_API_KEY", env_keys.get("ROUTER9_API_KEY", env_keys.get("NINE_ROUTER_API_KEY", os.environ.get("NINEROUTER_API_KEY", os.environ.get("ROUTER9_API_KEY", os.environ.get("NINE_ROUTER_API_KEY", ""))))))
+            elif provider_id == "clouvia":
                 api_key = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", ""))
             elif provider_id == "atria":
                 api_key = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))

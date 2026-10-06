@@ -8,6 +8,11 @@ CONFIG_FILE = os.path.expanduser("~/.routers_config.json")
 ENV_FILE = os.path.expanduser("~/.env")
 
 PRESET_PROVIDERS = {
+    "9router": {
+        "name": "9Router (Self-Hosted AI Gateway)",
+        "base_url": "",
+        "default_model": "ag/gemini-3.7-flash-high"
+    },
     "clouvia": {
         "name": "Clouvia Router (coding-high, free-model)",
         "base_url": "https://router.clouvia.id/v1",
@@ -178,7 +183,9 @@ def get_active_config():
     env_keys = load_env_keys()
     api_k = curr.get("api_key", "")
     if not api_k:
-        if active_key == "clouvia":
+        if active_key == "9router":
+            api_k = env_keys.get("NINEROUTER_API_KEY", env_keys.get("ROUTER9_API_KEY", env_keys.get("NINE_ROUTER_API_KEY", os.environ.get("NINEROUTER_API_KEY", os.environ.get("ROUTER9_API_KEY", os.environ.get("NINE_ROUTER_API_KEY", ""))))))
+        elif active_key == "clouvia":
             api_k = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", ""))
         elif active_key == "atria":
             api_k = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
@@ -235,13 +242,30 @@ def add_new_provider():
             base_url = preset["base_url"]
             default_m = preset["default_model"]
             prov_id = p_key
+
+            if not base_url or p_key == "9router":
+                raw_url = Prompt.ask("Domain / Base URL 9Router Anda (contoh: https://9router-production-b35d.up.railway.app)").strip()
+                if not raw_url or raw_url.lower() == "e":
+                    console.print("[yellow]Batal menambah provider.[/yellow]")
+                    return get_active_config()
+                if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+                    raw_url = "https://" + raw_url
+                raw_url = raw_url.rstrip("/")
+                if not raw_url.endswith("/v1"):
+                    raw_url = f"{raw_url}/v1"
+                base_url = raw_url
         elif c_idx == len(keys):
             prov_id = Prompt.ask("ID Provider unik (contoh: sambanova / deepinfra)").strip().lower()
             if not prov_id or prov_id == "e":
                 return get_active_config()
             name = Prompt.ask("Nama Tampilan Provider", default=prov_id.capitalize())
-            base_url = Prompt.ask("Base URL (contoh: https://api.sambanova.ai/v1)")
-            default_m = Prompt.ask("Default Model")
+            base_url = Prompt.ask("Base URL (contoh: https://api.sambanova.ai/v1)").strip()
+            if not base_url.startswith("http://") and not base_url.startswith("https://"):
+                base_url = "https://" + base_url
+            base_url = base_url.rstrip("/")
+            if not base_url.endswith("/v1"):
+                base_url = f"{base_url}/v1"
+            default_m = Prompt.ask("Default Model", default="default-model")
         else:
             console.print("[bold red]❌ Input nomor tidak valid![/bold red]")
             return get_active_config()

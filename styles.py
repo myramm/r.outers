@@ -271,7 +271,12 @@ MODEL_CLEAN_MAP = {
     "free-model": "Free Model",
     "claude-opus-4.8": "Claude Opus 4.8",
     "claude-sonnet-5-thinking-agentic": "Claude Sonnet 5",
+    "claude-sonnet-4-6": "Claude Sonnet 4.6",
+    "claude-opus-4-6-thinking": "Claude Opus 4.6",
     "gemini-3.8-flash": "Gemini 3.8 Flash",
+    "gemini-3.8-flash-high": "Gemini 3.8 Flash High",
+    "gemini-3.7-flash-high": "Gemini 3.7 Flash High",
+    "gemini-3.7-flash": "Gemini 3.7 Flash",
     "kimi-k3": "Kimi K3",
     "minimax-m3": "Minimax M3"
 }

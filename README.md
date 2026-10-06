@@ -130,6 +130,13 @@ Semua konfigurasi model, provider, API key, timeout, dan preferensi CLI tersimpa
 {
   "active_provider": "nvidia",
   "providers": {
+    "9router": {
+      "name": "9Router",
+      "base_url": "https://your-9router.up.railway.app/v1",
+      "api_key": "sk-your-9router-key",
+      "model": "ag/gemini-3.7-flash-high",
+      "timeout": 180
+    },
     "nvidia": {
       "name": "NVIDIA NIM",
       "base_url": "https://integrate.api.nvidia.com/v1",
@@ -171,6 +178,7 @@ nano ~/.routers_config.json
 ### Alternatif via File `.env` / Environment Variable:
 Anda juga dapat memasukkan API Key di file `.env`:
 ```env
+NINEROUTER_API_KEY=sk-your_9router_key_here
 NVIDIA_API_KEY=nvapi-your_nvidia_api_key_here
 ATRIA_API_KEY=your_atria_api_key_here
 ```
