@@ -276,8 +276,10 @@ def setup_9router_interactive(current_config=None):
 
 def show_9router_hub_interactive(current_config=None):
     from rich.prompt import Prompt
-    from rich.panel import Panel
     from config import load_full_config, save_full_config, get_active_config
+
+    if not sys.stdin.isatty():
+        return current_config or get_active_config()
 
     full_cfg = load_full_config()
     providers = full_cfg.get("providers", {})
@@ -289,38 +291,157 @@ def show_9router_hub_interactive(current_config=None):
     is_active = (full_cfg.get("active_provider") == "9router")
 
     key_masked = f"{key[:6]}...{key[-4:]}" if len(key) > 10 else ("[Tersimpan]" if key else "[Belum Diisi]")
-    active_badge = "[bold green]● SEDANG AKTIF[/bold green]" if is_active else "[dim]○ Standby (Belum Aktif)[/dim]"
+    active_badge_str = "● SEDANG AKTIF" if is_active else "○ Standby"
 
-    console.print(Panel(f"""[bold]9Router Hub — Status & Konfigurasi:[/bold]
-• Status Provider : {active_badge}
-• Domain / Base URL: [cyan]{url if url else '[Belum Dikonfigurasi]'}[/cyan]
-• API Key         : [yellow]{key_masked}[/yellow]
-• Model AI Aktif  : [bold yellow]{model}[/bold yellow]
+    menu_items = [
+        {
+            "id": "setup_all",
+            "name": "🌐 Setup Lengkap",
+            "desc": "Konfigurasi Domain URL, API Key & Model sekaligus",
+            "tag": "SETUP",
+            "color": "\033[1;36m"
+        },
+        {
+            "id": "change_url",
+            "name": "🔗 Ubah Domain / Base URL Saja",
+            "desc": "Ganti URL endpoint 9Router (Railway / Custom Domain)",
+            "tag": "URL",
+            "color": "\033[1;33m"
+        },
+        {
+            "id": "change_key",
+            "name": "🔑 Ubah API Key Saja",
+            "desc": "Update atau paste API Key 9Router baru",
+            "tag": "KEY",
+            "color": "\033[1;32m"
+        },
+        {
+            "id": "select_model",
+            "name": "🤖 Pilih / Ganti Model AI",
+            "desc": "Live API Model Discovery dari katalog 9Router",
+            "tag": "MODEL",
+            "color": "\033[1;35m"
+        },
+        {
+            "id": "activate",
+            "name": "⚡ Aktifkan Sebagai Provider Utama",
+            "desc": "Jadikan 9Router sebagai AI Provider aktif di r.outers",
+            "tag": "ACTIVE",
+            "color": "\033[1;32m"
+        },
+        {
+            "id": "ping_test",
+            "name": "🧪 Test Koneksi & Ping API",
+            "desc": "Uji latency & responsivitas endpoint 9Router",
+            "tag": "PING",
+            "color": "\033[1;34m"
+        },
+        {
+            "id": "back",
+            "name": "⬅️ Kembali ke Chat",
+            "desc": "Keluar dari menu 9Router Hub",
+            "tag": "ESC",
+            "color": "\033[90m"
+        }
+    ]
 
-[bold]Pilihan Aksi:[/bold]
-  [bold yellow]1[/bold yellow]. 🌐 Setup Lengkap (Domain URL, API Key & Model)
-  [bold yellow]2[/bold yellow]. 🔗 Ubah Domain / Base URL Saja
-  [bold yellow]3[/bold yellow]. 🔑 Ubah API Key Saja
-  [bold yellow]4[/bold yellow]. 🤖 Pilih / Ganti Model 9Router (Live API Discovery)
-  [bold yellow]5[/bold yellow]. ⚡ Aktifkan 9Router Sebagai Provider Utama
-  [bold yellow]6[/bold yellow]. 🧪 Test Koneksi & Ping API 9Router
-  [bold red]e / Esc[/bold red]. Kembali ke Chat
-""", title="⚡ 9Router Management Hub"))
+    selected_idx = 0
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
 
+    sys.stdout.write("\033[?1049h\033[?25l\033[H\033[2J")
+    sys.stdout.flush()
+
+    chosen = None
     try:
-        choice = Prompt.ask("Pilih opsi (1-6, e/esc)", default="1").strip().lower()
-    except (KeyboardInterrupt, EOFError):
-        console.print("\n[yellow]Kembali ke mode chat.[/yellow]\n")
-        return current_config or get_active_config()
+        tty.setraw(fd)
+        sys.stdout.write("\033[?7l")
+        sys.stdout.flush()
 
-    if is_cancel_input(choice):
+        while True:
+            try:
+                term_cols = os.get_terminal_size().columns
+            except Exception:
+                term_cols = 52
+            width = max(38, min(term_cols - 2, 64))
+
+            lines = []
+            title_tag = "⚡ 9Router Management Hub"
+            gap_t = max(1, width - len(title_tag) - 7)
+            lines.append(f"\033[1;36m{title_tag}\033[0m{' ' * gap_t}\033[90m[Esc]\033[0m")
+
+            # Status bar
+            badge_color = "\033[1;32m" if is_active else "\033[90m"
+            status_line = f"\033[90mStatus: {badge_color}[{active_badge_str}]\033[0m"
+            lines.append(status_line)
+
+            # Details
+            disp_url = url if url else "[Belum Dikonfigurasi]"
+            if len(disp_url) > width - 12:
+                disp_url = disp_url[:width - 15] + "..."
+            lines.append(f"\033[90m• URL   : \033[1;36m{disp_url}\033[0m")
+            lines.append(f"\033[90m• Key   : \033[1;33m{key_masked}\033[0m  \033[90mModel:\033[0m \033[1;33m{model}\033[0m")
+            lines.append(f"\033[90m{'─' * width}\033[0m")
+            lines.append("")
+
+            for idx, item in enumerate(menu_items):
+                is_sel = (idx == selected_idx)
+                pfx = "▸ " if is_sel else "  "
+                tag_badge = f"{item['color']}[{item['tag']}]\033[0m " if item["tag"] else ""
+
+                avail_w = width - 4
+                row_txt = f"{pfx}{tag_badge}\033[1m{item['name']}\033[0m"
+                desc_line = f"     \033[90m{item['desc']}\033[0m"
+
+                if is_sel:
+                    lines.append(f"\033[7m\033[1m {row_txt:<{avail_w}} \033[0m")
+                    if item["id"] != "back":
+                        lines.append(f"\033[7m {desc_line:<{avail_w}} \033[0m")
+                else:
+                    lines.append(f" {row_txt}")
+                    if item["id"] != "back":
+                        lines.append(f" {desc_line}")
+                lines.append("")
+
+            lines.append(f"\033[90m{'─' * width}\033[0m")
+            lines.append(f" \033[1;33m↑↓/Tab\033[0m \033[90mPilih\033[0m  \033[1;32mEnter\033[0m \033[90mEksekusi\033[0m  \033[90mEsc Kembali\033[0m")
+
+            out_buf = ["\033[H"]
+            for l in lines:
+                out_buf.append(f"\r\033[2K{l}\r\n")
+            out_buf.append("\r\033[J")
+            sys.stdout.write("".join(out_buf))
+            sys.stdout.flush()
+
+            k = read_key_raw_fd(fd)
+            if k in ('ESC', 'CTRL_C', 'e', 'E', 'q', 'Q'):
+                chosen = "back"
+                break
+            elif k in ('UP', 'SHIFT_TAB'):
+                selected_idx = (selected_idx - 1) % len(menu_items)
+            elif k in ('DOWN', 'TAB'):
+                selected_idx = (selected_idx + 1) % len(menu_items)
+            elif k == 'ENTER':
+                chosen = menu_items[selected_idx]["id"]
+                break
+            elif k in ('1', '2', '3', '4', '5', '6', '7'):
+                num_idx = int(k) - 1
+                if 0 <= num_idx < len(menu_items):
+                    selected_idx = num_idx
+                    chosen = menu_items[selected_idx]["id"]
+                    break
+    finally:
+        sys.stdout.write("\033[?7h\033[?1049l\033[?25h")
+        sys.stdout.flush()
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
+    if not chosen or chosen == "back":
         console.print("[yellow]Kembali ke mode chat.[/yellow]\n")
         return current_config or get_active_config()
 
-    if choice == "1":
+    if chosen == "setup_all":
         return setup_9router_interactive(current_config)
-    elif choice == "2":
-        # Ubah URL
+    elif chosen == "change_url":
         def_url = entry.get("base_url", "")
         try:
             raw_url = Prompt.ask("[bold cyan]Masukkan Domain / Base URL 9Router baru[/bold cyan] [dim](Esc/e: batal)[/dim]", default=def_url).strip()
@@ -338,8 +459,7 @@ def show_9router_hub_interactive(current_config=None):
             save_full_config(full_cfg)
             console.print(f"[bold green]✔ Base URL 9Router diperbarui ke:[/bold green] [cyan]{raw_url}[/cyan]\n")
         return get_active_config()
-    elif choice == "3":
-        # Ubah API Key
+    elif chosen == "change_key":
         def_key = entry.get("api_key", "")
         try:
             raw_key = Prompt.ask("[bold cyan]Masukkan / Paste API Key 9Router baru[/bold cyan] [dim](Esc/e: batal)[/dim]", default=def_key).strip()
@@ -352,8 +472,7 @@ def show_9router_hub_interactive(current_config=None):
             save_full_config(full_cfg)
             console.print(f"[bold green]✔ API Key 9Router berhasil diperbarui![/bold green]\n")
         return get_active_config()
-    elif choice == "4":
-        # Pilih Model
+    elif chosen == "select_model":
         if not url or not key:
             console.print("[bold yellow]⚠ URL atau API Key 9Router belum dikonfigurasi. Menjalankan setup lengkap...[/bold yellow]")
             return setup_9router_interactive(current_config)
@@ -376,8 +495,7 @@ def show_9router_hub_interactive(current_config=None):
                 save_full_config(full_cfg)
                 console.print(f"[bold green]✔ Model 9Router diubah ke:[/bold green] [bold yellow]{raw_m}[/bold yellow]\n")
             return get_active_config()
-    elif choice == "5":
-        # Aktifkan 9Router
+    elif chosen == "activate":
         if not url or not key:
             console.print("[bold yellow]⚠ URL atau API Key 9Router belum lengkap. Menjalankan setup...[/bold yellow]")
             return setup_9router_interactive(current_config)
@@ -385,8 +503,7 @@ def show_9router_hub_interactive(current_config=None):
         save_full_config(full_cfg)
         console.print("[bold green]✔ 9Router berhasil diaktifkan sebagai provider utama![/bold green]\n")
         return get_active_config()
-    elif choice == "6":
-        # Test Koneksi / Ping
+    elif chosen == "ping_test":
         if not url or not key:
             console.print("[bold yellow]⚠ URL atau API Key 9Router belum diisi.[/bold yellow]\n")
             return get_active_config()
