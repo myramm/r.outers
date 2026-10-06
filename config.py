@@ -244,7 +244,7 @@ def add_new_provider():
             prov_id = p_key
 
             if not base_url or p_key == "9router":
-                raw_url = Prompt.ask("Domain / Base URL 9Router Anda (contoh: https://9router-production-b35d.up.railway.app)").strip()
+                raw_url = Prompt.ask("Domain / Base URL 9Router Anda (contoh: https://your-9router.up.railway.app)").strip()
                 if not raw_url or raw_url.lower() == "e":
                     console.print("[yellow]Batal menambah provider.[/yellow]")
                     return get_active_config()

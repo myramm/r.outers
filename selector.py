@@ -196,8 +196,8 @@ def setup_9router_interactive(current_config=None):
         # 1. Masukkan Domain / Base URL
         def_url = existing_9r.get("base_url", "")
         raw_url = Prompt.ask(
-            "[bold cyan]1. Masukkan Domain / Base URL 9Router[/bold cyan] [dim](Esc/e: batal)[/dim]",
-            default=def_url if def_url else "https://9router-production-b35d.up.railway.app"
+            "[bold cyan]1. Masukkan Domain / Base URL 9Router[/bold cyan] [dim](contoh: https://your-9router.up.railway.app - Esc/e: batal)[/dim]",
+            default=def_url if def_url else ""
         ).strip()
         
         if is_cancel_input(raw_url):
