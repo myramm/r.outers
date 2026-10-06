@@ -16,7 +16,7 @@ from config import (
 from memory import load_memory
 from tools import execute_tool
 from client import build_system_prompt, call_ai
-from selector import select_model_interactive, select_thinking_interactive, setup_9router_interactive
+from selector import select_model_interactive, select_thinking_interactive, setup_9router_interactive, show_9router_hub_interactive
 from settings import show_settings_hub
 from slash_prompt import get_smart_input
 from queue_manager import get_next_queued_message, has_queued_messages
@@ -295,6 +295,9 @@ def handle_command(user_input, config, messages, auto_approve):
                 if url:
                     install_skill_from_url(url)
             return config, auto_approve
+        elif cmd_lower in ["/9router", "/9r"]:
+            config = show_9router_hub_interactive(config)
+            return config, auto_approve
         elif cmd_lower in ["/setup", "/config", "/pengaturan", "/settings"]:
             auto_ref = [auto_approve]
             config = show_settings_hub(config, auto_ref)
@@ -307,6 +310,7 @@ def handle_command(user_input, config, messages, auto_approve):
             console.print(Panel("""[bold]Perintah Tersedia:[/bold]
 • [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif, mode thinking, & antrean pesan
 • [bold cyan]stop[/bold cyan] [dim](atau /stop, cancel)[/dim]: Hentikan atau batalkan task aktif
+• [bold cyan]/9router[/bold cyan] [dim](atau /9r)[/dim]     : Pusat Manajemen & Setup 9Router (Domain URL, Key, Model, Ping)
 • [bold cyan]/thinking[/bold cyan] [mode]     : Mode Thinking (off, low, medium, high, max, custom) (/think, /t)
 • [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim]   : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
 • [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]    : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)

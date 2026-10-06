@@ -21,6 +21,7 @@ from styles import (
 )
 
 SLASH_COMMANDS = [
+    {"cmd": "/9router", "desc": "Pusat Manajemen & Setup 9Router (Domain URL, Key, Model, Ping) (/9r)"},
     {"cmd": "/status", "desc": "Lihat status aktif agent, antrean task, dan model"},
     {"cmd": "/stop", "desc": "Hentikan atau batalkan task yang sedang aktif (/cancel)"},
     {"cmd": "/thinking", "desc": "Mode Thinking/Reasoning (off, low, medium, high, max, custom)"},

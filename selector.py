@@ -274,6 +274,147 @@ def setup_9router_interactive(current_config=None):
 
     return get_active_config()
 
+def show_9router_hub_interactive(current_config=None):
+    from rich.prompt import Prompt
+    from rich.panel import Panel
+    from config import load_full_config, save_full_config, get_active_config
+
+    full_cfg = load_full_config()
+    providers = full_cfg.get("providers", {})
+    entry = providers.get("9router", {})
+
+    url = entry.get("base_url", "")
+    key = entry.get("api_key", "")
+    model = entry.get("model", "oc/space-bunny-free")
+    is_active = (full_cfg.get("active_provider") == "9router")
+
+    key_masked = f"{key[:6]}...{key[-4:]}" if len(key) > 10 else ("[Tersimpan]" if key else "[Belum Diisi]")
+    active_badge = "[bold green]● SEDANG AKTIF[/bold green]" if is_active else "[dim]○ Standby (Belum Aktif)[/dim]"
+
+    console.print(Panel(f"""[bold]9Router Hub — Status & Konfigurasi:[/bold]
+• Status Provider : {active_badge}
+• Domain / Base URL: [cyan]{url if url else '[Belum Dikonfigurasi]'}[/cyan]
+• API Key         : [yellow]{key_masked}[/yellow]
+• Model AI Aktif  : [bold yellow]{model}[/bold yellow]
+
+[bold]Pilihan Aksi:[/bold]
+  [bold yellow]1[/bold yellow]. 🌐 Setup Lengkap (Domain URL, API Key & Model)
+  [bold yellow]2[/bold yellow]. 🔗 Ubah Domain / Base URL Saja
+  [bold yellow]3[/bold yellow]. 🔑 Ubah API Key Saja
+  [bold yellow]4[/bold yellow]. 🤖 Pilih / Ganti Model 9Router (Live API Discovery)
+  [bold yellow]5[/bold yellow]. ⚡ Aktifkan 9Router Sebagai Provider Utama
+  [bold yellow]6[/bold yellow]. 🧪 Test Koneksi & Ping API 9Router
+  [bold red]e / Esc[/bold red]. Kembali ke Chat
+""", title="⚡ 9Router Management Hub"))
+
+    try:
+        choice = Prompt.ask("Pilih opsi (1-6, e/esc)", default="1").strip().lower()
+    except (KeyboardInterrupt, EOFError):
+        console.print("\n[yellow]Kembali ke mode chat.[/yellow]\n")
+        return current_config or get_active_config()
+
+    if is_cancel_input(choice):
+        console.print("[yellow]Kembali ke mode chat.[/yellow]\n")
+        return current_config or get_active_config()
+
+    if choice == "1":
+        return setup_9router_interactive(current_config)
+    elif choice == "2":
+        # Ubah URL
+        def_url = entry.get("base_url", "")
+        try:
+            raw_url = Prompt.ask("[bold cyan]Masukkan Domain / Base URL 9Router baru[/bold cyan] [dim](Esc/e: batal)[/dim]", default=def_url).strip()
+        except (KeyboardInterrupt, EOFError):
+            return get_active_config()
+        if not is_cancel_input(raw_url) and raw_url:
+            if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+                raw_url = "https://" + raw_url
+            raw_url = raw_url.rstrip("/")
+            if not raw_url.endswith("/v1"):
+                raw_url = f"{raw_url}/v1"
+            entry["base_url"] = raw_url
+            providers["9router"] = entry
+            full_cfg["providers"] = providers
+            save_full_config(full_cfg)
+            console.print(f"[bold green]✔ Base URL 9Router diperbarui ke:[/bold green] [cyan]{raw_url}[/cyan]\n")
+        return get_active_config()
+    elif choice == "3":
+        # Ubah API Key
+        def_key = entry.get("api_key", "")
+        try:
+            raw_key = Prompt.ask("[bold cyan]Masukkan / Paste API Key 9Router baru[/bold cyan] [dim](Esc/e: batal)[/dim]", default=def_key).strip()
+        except (KeyboardInterrupt, EOFError):
+            return get_active_config()
+        if not is_cancel_input(raw_key) and raw_key:
+            entry["api_key"] = raw_key
+            providers["9router"] = entry
+            full_cfg["providers"] = providers
+            save_full_config(full_cfg)
+            console.print(f"[bold green]✔ API Key 9Router berhasil diperbarui![/bold green]\n")
+        return get_active_config()
+    elif choice == "4":
+        # Pilih Model
+        if not url or not key:
+            console.print("[bold yellow]⚠ URL atau API Key 9Router belum dikonfigurasi. Menjalankan setup lengkap...[/bold yellow]")
+            return setup_9router_interactive(current_config)
+        console.print("\n[dim]⏳ Mengambil katalog model live dari 9Router...[/dim]")
+        from model_fetcher import fetch_provider_models
+        live_models = fetch_provider_models("9router", base_url=url, api_key=key, force_refresh=True)
+        if live_models:
+            full_cfg["active_provider"] = "9router"
+            save_full_config(full_cfg)
+            return select_model_interactive(get_active_config())
+        else:
+            try:
+                raw_m = Prompt.ask("[bold cyan]Masukkan nama model manual[/bold cyan] [dim](Esc/e: batal)[/dim]", default=model).strip()
+            except (KeyboardInterrupt, EOFError):
+                return get_active_config()
+            if not is_cancel_input(raw_m) and raw_m:
+                entry["model"] = raw_m
+                providers["9router"] = entry
+                full_cfg["providers"] = providers
+                save_full_config(full_cfg)
+                console.print(f"[bold green]✔ Model 9Router diubah ke:[/bold green] [bold yellow]{raw_m}[/bold yellow]\n")
+            return get_active_config()
+    elif choice == "5":
+        # Aktifkan 9Router
+        if not url or not key:
+            console.print("[bold yellow]⚠ URL atau API Key 9Router belum lengkap. Menjalankan setup...[/bold yellow]")
+            return setup_9router_interactive(current_config)
+        full_cfg["active_provider"] = "9router"
+        save_full_config(full_cfg)
+        console.print("[bold green]✔ 9Router berhasil diaktifkan sebagai provider utama![/bold green]\n")
+        return get_active_config()
+    elif choice == "6":
+        # Test Koneksi / Ping
+        if not url or not key:
+            console.print("[bold yellow]⚠ URL atau API Key 9Router belum diisi.[/bold yellow]\n")
+            return get_active_config()
+        console.print(f"\n[dim]⏳ Melakukan test ping ke {url}...[/dim]")
+        import time, requests
+        t0 = time.time()
+        try:
+            r = requests.post(f"{url}/chat/completions", headers={
+                "Authorization": f"Bearer {key}",
+                "Content-Type": "application/json"
+            }, json={
+                "model": model,
+                "messages": [{"role": "user", "content": "ping"}],
+                "max_tokens": 5
+            }, timeout=15)
+            dt = (time.time() - t0) * 1000
+            if r.status_code == 200:
+                console.print(f"[bold green]✔ Test Berhasil! (Latency: {dt:.0f}ms, Status: 200 OK)[/bold green]")
+                console.print(f"  • Endpoint: [cyan]{url}[/cyan]")
+                console.print(f"  • Model Digunakan: [bold yellow]{model}[/bold yellow]\n")
+            else:
+                console.print(f"[bold red]✘ Gagal (HTTP {r.status_code}):[/bold red] {r.text}\n")
+        except Exception as e:
+            console.print(f"[bold red]✘ Gagal menghubungi 9Router:[/bold red] {e}\n")
+        return get_active_config()
+
+    return get_active_config()
+
 def select_model_interactive(current_config):
     if not sys.stdin.isatty():
         return current_config
