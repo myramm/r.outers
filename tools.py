@@ -376,7 +376,7 @@ def execute_tool(name, args, auto_approve=False):
             tip_start_time = time.time()
 
             try:
-                with console.status(f"[bold cyan]↳ Running...[/bold cyan] [dim](0.0s | ESC: Stop)[/dim]\n  [dim italic]Tips: {current_tip}[/dim italic]") as status:
+                with console.status(f"[bold cyan]Running command...[/bold cyan] [dim](0.0s | ESC: Stop)[/dim]\n  [dim]└ Tip: {current_tip}[/dim]") as status:
                     def update_bash_status():
                         nonlocal current_tip, tip_start_time
                         elapsed = time.time() - start_time
@@ -385,11 +385,11 @@ def execute_tool(name, args, auto_approve=False):
                             tip_start_time = time.time()
 
                         txt = watcher.get_buffer_text()
-                        tip_line = f"  [dim italic]Tips: {current_tip}[/dim italic]"
+                        tip_line = f"  [dim]└ Tip: {current_tip}[/dim]"
                         if txt:
-                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                            status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
                         else:
-                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}")
+                            status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}")
 
                     watcher.on_change = update_bash_status
                     watcher.start()

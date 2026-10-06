@@ -67,8 +67,13 @@ def print_markdown(content):
     console.print("")
     console.print(Markdown(content))
 
+def get_random_tip():
+    return random.choice(RTS_TIPS)
+
 def show_subtle_tip():
-    tip = random.choice(RTS_TIPS)
-    console.print(f"\n[dim italic]Tips: {tip}[/dim italic]")
+    tip = get_random_tip()
+    console.print(f"\n[dim]Tip: {tip}[/dim]")
+
+
 
 

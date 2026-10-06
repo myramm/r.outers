@@ -155,7 +155,7 @@ def call_ai(messages, config):
     tip_start_time = time.time()
 
     try:
-        with console.status(f"{status_label}\n  [dim italic]Tips: {current_tip}[/dim italic]") as status:
+        with console.status(f"{status_label}\n  [dim]└ Tip: {current_tip}[/dim]") as status:
             def update_thinking_status():
                 nonlocal current_tip, tip_start_time
                 if time.time() - tip_start_time > 4.5:
@@ -163,7 +163,7 @@ def call_ai(messages, config):
                     tip_start_time = time.time()
 
                 txt = watcher.get_buffer_text()
-                tip_line = f"  [dim italic]Tips: {current_tip}[/dim italic]"
+                tip_line = f"  [dim]└ Tip: {current_tip}[/dim]"
                 if txt:
                     status.update(f"{status_label}\n{tip_line}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
                 else:
