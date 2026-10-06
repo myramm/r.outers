@@ -347,6 +347,8 @@ def select_model_interactive(current_config):
                             existing_api_key = env_keys.get("CLOUVIA_API_KEY", os.environ.get("CLOUVIA_API_KEY", "")).strip()
                         elif target_prov_id == "nvidia":
                             existing_api_key = env_keys.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", os.environ.get("NVAPI_KEY", ""))).strip()
+                        elif target_prov_id == "openrouter":
+                            existing_api_key = env_keys.get("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", "")).strip()
 
                     # Jika API Key masih kosong dan bukan clouvia bawaan gratis, minta user input sekali saja
                     if not existing_api_key and target_prov_id != "clouvia":

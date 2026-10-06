@@ -22,6 +22,11 @@ PRESET_PROVIDERS = {
         "name": "NVIDIA NIM / Build (integrate.api.nvidia.com)",
         "base_url": "https://integrate.api.nvidia.com/v1",
         "default_model": "nvidia/llama-3.1-nemotron-70b-instruct"
+    },
+    "openrouter": {
+        "name": "OpenRouter (openrouter.ai/api/v1)",
+        "base_url": "https://openrouter.ai/api/v1",
+        "default_model": "deepseek/deepseek-r1:free"
     }
 }
 
@@ -94,6 +99,8 @@ def get_active_config():
             api_k = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
         elif active_key == "nvidia":
             api_k = env_keys.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", os.environ.get("NVAPI_KEY", "")))
+        elif active_key == "openrouter":
+            api_k = env_keys.get("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", ""))
         else:
             api_k = env_keys.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
 

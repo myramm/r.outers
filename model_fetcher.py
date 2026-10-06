@@ -3,7 +3,7 @@ import sys
 import json
 import time
 import requests
-from config import load_full_config, load_env_keys
+from config import load_full_config, load_env_keys, PRESET_PROVIDERS
 
 CACHE_FILE = os.path.expanduser("~/.routers_models_cache.json")
 CACHE_TTL_SECONDS = 3600  # 1 hour cache validity
@@ -22,6 +22,10 @@ FALLBACK_DEFAULT_MODELS = [
     {"id": "glm5.3-thinking-agentic", "name": "GLM 5.3 Thinking Agentic", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "REASON", "fav": True},
     {"id": "Atria-Dawn-Preview", "name": "Atria Dawn Preview", "provider_id": "atria", "provider_name": "Atria ASI", "tag": "TOP", "fav": True},
     {"id": "nvidia/nemotron-3-super-120b-a12b", "name": "Nemotron 3 Super 120B", "provider_id": "nvidia", "provider_name": "NVIDIA NIM", "tag": "TOP", "fav": True},
+    {"id": "deepseek/deepseek-r1:free", "name": "DeepSeek R1 (Free)", "provider_id": "openrouter", "provider_name": "OpenRouter", "tag": "FREE", "fav": True},
+    {"id": "meta-llama/llama-3.3-70b-instruct:free", "name": "Llama 3.3 70B (Free)", "provider_id": "openrouter", "provider_name": "OpenRouter", "tag": "FREE", "fav": True},
+    {"id": "qwen/qwen-2.5-coder-32b-instruct:free", "name": "Qwen 2.5 Coder 32B (Free)", "provider_id": "openrouter", "provider_name": "OpenRouter", "tag": "FREE", "fav": True},
+    {"id": "anthropic/claude-3.5-sonnet", "name": "Claude 3.5 Sonnet", "provider_id": "openrouter", "provider_name": "OpenRouter", "tag": "TOP", "fav": True},
 ]
 
 def load_cache():
@@ -56,12 +60,17 @@ def format_model_entry(raw_model_obj, provider_id="clouvia", provider_name="Clou
 
     id_lower = model_id.lower()
     parts = model_id.split("/")[-1]
+    if parts.lower().endswith(":free"):
+        parts_clean = parts[:-5]
+    else:
+        parts_clean = parts
 
     # Format human-friendly name
+    explicit_name = raw_model_obj.get("name") if isinstance(raw_model_obj, dict) else None
     from styles import MODEL_CLEAN_MAP
-    name = MODEL_CLEAN_MAP.get(parts.lower())
+    name = explicit_name or MODEL_CLEAN_MAP.get(parts.lower()) or MODEL_CLEAN_MAP.get(parts_clean.lower())
     if not name:
-        cleaned = parts.replace("-", " ").replace("_", " ")
+        cleaned = parts_clean.replace("-", " ").replace("_", " ")
         words = []
         for w in cleaned.split():
             if w.lower() in ("ai", "gpt", "glm", "oss", "it", "ui", "api", "rts", "nim", "v4", "v3", "v2", "m3", "k3"):
@@ -126,9 +135,37 @@ def format_model_entry(raw_model_obj, provider_id="clouvia", provider_name="Clou
         "pricing": pricing
     }
 
+def load_openrouter_catalog(prov_name="OpenRouter"):
+    """
+    Load OpenRouter model catalog safely via local file or GitHub raw mirror
+    to prevent IP bans/Cloudflare blocking on sensitive VPS environments.
+    """
+    local_path = os.path.join(os.path.dirname(__file__), "openrouter_models.json")
+    if os.path.exists(local_path):
+        try:
+            with open(local_path, "r", encoding="utf-8") as f:
+                items = json.load(f)
+                if isinstance(items, list) and items:
+                    return [format_model_entry(m, provider_id="openrouter", provider_name=prov_name) for m in items]
+        except Exception:
+            pass
+
+    github_url = "https://raw.githubusercontent.com/myramm/r.outers/main/openrouter_models.json"
+    try:
+        resp = requests.get(github_url, timeout=4)
+        if resp.status_code == 200:
+            items = resp.json()
+            if isinstance(items, list) and items:
+                return [format_model_entry(m, provider_id="openrouter", provider_name=prov_name) for m in items]
+    except Exception:
+        pass
+
+    return []
+
 def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, force_refresh=False):
     """
     Fetch models automatically from the provider's /v1/models endpoint (or fallback https://router.clouvia.id/v1/models).
+    For OpenRouter, uses GitHub raw mirror / local catalog to avoid Cloudflare/VPS IP blocking.
     Caches the results locally to guarantee fast offline startup.
     """
     cache = load_cache()
@@ -145,6 +182,22 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
     providers = full_cfg.get("providers", {})
     prov_cfg = providers.get(provider_id, {})
 
+    prov_preset = PRESET_PROVIDERS.get(provider_id, {})
+    prov_name = prov_cfg.get("name") or prov_preset.get("name") or ("OpenRouter" if provider_id == "openrouter" else provider_id.capitalize())
+    if " (" in prov_name:
+        prov_name = prov_name.split(" (")[0]
+
+    # OpenRouter safe fetch via GitHub / local catalog
+    if provider_id == "openrouter":
+        or_models = load_openrouter_catalog(prov_name)
+        if or_models:
+            cache[provider_id] = {
+                "timestamp": now,
+                "models": or_models
+            }
+            save_cache(cache)
+            return or_models
+
     if not base_url:
         base_url = prov_cfg.get("base_url") or "https://router.clouvia.id/v1"
     if not api_key:
@@ -157,10 +210,10 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
                 api_key = env_keys.get("ATRIA_API_KEY", os.environ.get("ATRIA_API_KEY", ""))
             elif provider_id == "nvidia":
                 api_key = env_keys.get("NVIDIA_API_KEY", os.environ.get("NVIDIA_API_KEY", os.environ.get("NVAPI_KEY", "")))
+            elif provider_id == "openrouter":
+                api_key = env_keys.get("OPENROUTER_API_KEY", os.environ.get("OPENROUTER_API_KEY", ""))
             else:
                 api_key = env_keys.get("OPENAI_API_KEY", os.environ.get("OPENAI_API_KEY", ""))
-
-    prov_name = prov_cfg.get("name", provider_id.capitalize())
 
     # Determine endpoint URLs to try
     urls_to_try = []
@@ -204,7 +257,7 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
 
     # If fetch failed, return existing cached models if available
     if cache_entry.get("models"):
-        return cache_entry["models"]
+        return [format_model_entry(m, provider_id=m.get("provider_id", provider_id), provider_name=m.get("provider_name", provider_id)) for m in cache_entry["models"]]
 
     # Fallback to defaults filtered by provider
     defaults = [m for m in FALLBACK_DEFAULT_MODELS if m["provider_id"] == provider_id]
@@ -229,8 +282,13 @@ def get_all_available_models(current_config=None, force_refresh=False):
         all_models.append(m)
         seen_ids.add((m["provider_id"], m["id"]))
 
-    # 2. Fetch models for other configured providers
-    for p_id, p_info in providers.items():
+    # 2. Fetch models for other configured providers and preset providers
+    prov_ids_to_check = list(providers.keys())
+    for p_id in PRESET_PROVIDERS:
+        if p_id not in prov_ids_to_check:
+            prov_ids_to_check.append(p_id)
+
+    for p_id in prov_ids_to_check:
         if p_id != active_prov:
             p_models = fetch_provider_models(p_id, force_refresh=force_refresh)
             for m in p_models:
