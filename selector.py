@@ -191,6 +191,7 @@ def prompt_text_with_esc(prompt_text, default="", mask=False):
     """
     Interactive text input that handles physical/virtual ESC key immediately without printing '^['
     and supports inline editing, backspace, and default value.
+    Uses clean multi-line layout to prevent text duplication on mobile/narrow screens.
     """
     if not sys.stdin.isatty():
         try:
@@ -200,26 +201,34 @@ def prompt_text_with_esc(prompt_text, default="", mask=False):
         except Exception:
             return None
 
+    # 1. Print prompt description once on its own line
+    clean_prompt = prompt_text.strip()
+    sys.stdout.write(f"\n{clean_prompt}\n")
+    if default:
+        sys.stdout.write(f"  \033[90m[Default: {default}]\033[0m\n")
+
+    # 2. Input prompt line (short prefix ensures line clearing never wraps)
+    input_prefix = "  \033[1;32m❯\033[0m "
+    sys.stdout.write(f"\r\033[2K{input_prefix}")
+    sys.stdout.flush()
+
     fd = sys.stdin.fileno()
     old_settings = termios.tcgetattr(fd)
-
     buffer = ""
-    def_disp = f" \033[90m({default})\033[0m" if default else ""
-    sys.stdout.write(f"\r\033[2K{prompt_text}{def_disp}: ")
-    sys.stdout.flush()
 
     try:
         tty.setraw(fd)
         while True:
             k = read_key_raw_fd(fd)
             if k in ('ESC', 'CTRL_C'):
-                sys.stdout.write("\r\033[2K\r\n")
+                sys.stdout.write(f"\r\033[2K  \033[90m(Batal)\033[0m\r\n\n")
                 sys.stdout.flush()
                 return None
             elif k in ('ENTER',):
-                sys.stdout.write("\r\033[2K\r\n")
-                sys.stdout.flush()
                 final_val = buffer.strip() if buffer.strip() else default
+                disp_val = ("*" * len(final_val)) if (mask and final_val) else final_val
+                sys.stdout.write(f"\r\033[2K{input_prefix}\033[1;33m{disp_val}\033[0m\r\n\n")
+                sys.stdout.flush()
                 return final_val
             elif k in ('BACKSPACE',):
                 if buffer:
@@ -230,15 +239,11 @@ def prompt_text_with_esc(prompt_text, default="", mask=False):
                 buffer += k
 
             disp_b = ("*" * len(buffer)) if (mask and buffer) else buffer
-            if not buffer and default:
-                disp_txt = f"{prompt_text} \033[90m({default})\033[0m: "
-            else:
-                disp_txt = f"{prompt_text}: \033[1;33m{disp_b}\033[0m"
-            
-            sys.stdout.write(f"\r\033[2K{disp_txt}")
+            sys.stdout.write(f"\r\033[2K{input_prefix}\033[1;33m{disp_b}\033[0m")
             sys.stdout.flush()
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
 
 def setup_9router_interactive(current_config=None):
     from config import get_active_config
