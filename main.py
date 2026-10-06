@@ -215,7 +215,7 @@ def handle_command(user_input, config, messages, auto_approve):
     elif user_input.startswith("/"):
         parts = user_input.strip().split(maxsplit=1)
         cmd_lower = parts[0].lower()
-        curr_model = config.get('model', 'free-model')
+        curr_model = config.get('model', 'ag/gemini-3.7-flash-high')
         supports_th = is_thinking_supported(curr_model)
         
         if cmd_lower in ["/clear", "/cls"]:
@@ -431,7 +431,7 @@ def main():
     full_cfg = load_full_config()
     config = get_active_config()
     auto_approve = (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
-    curr_model = config.get('model', 'free-model')
+    curr_model = config.get('model', 'ag/gemini-3.7-flash-high')
     thinking_mode = config.get("thinking_mode", "high")
     messages = [{"role": "system", "content": build_system_prompt(thinking_mode=thinking_mode, model_id=curr_model)}]
 

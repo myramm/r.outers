@@ -187,7 +187,43 @@ def is_cancel_input(val):
         or val_clean.startswith("^")
     )
 
+def test_model_connectivity(base_url, api_key, model_id, timeout=8):
+    """
+    Performs a lightweight verification ping to check if 9Router / provider can serve the model.
+    Returns (True, "OK") or (False, error_message).
+    """
+    import requests
+    try:
+        url = base_url.rstrip("/")
+        if not url.endswith("/v1"):
+            url = f"{url}/v1"
+        r = requests.post(
+            f"{url}/chat/completions",
+            headers={
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json"
+            },
+            json={
+                "model": model_id,
+                "messages": [{"role": "user", "content": "ping"}],
+                "max_tokens": 1
+            },
+            timeout=timeout
+        )
+        if r.status_code == 200:
+            return True, "OK"
+        else:
+            try:
+                err_data = r.json()
+                msg = err_data.get("error", {}).get("message") or err_data.get("error") or r.text
+            except Exception:
+                msg = r.text
+            return False, f"HTTP {r.status_code}: {msg}"
+    except Exception as e:
+        return False, str(e)
+
 def prompt_text_with_esc(prompt_text, default="", mask=False):
+
     """
     Interactive text input that handles physical/virtual ESC key immediately without printing '^['
     and supports inline editing, backspace, and default value.
@@ -288,36 +324,109 @@ def setup_9router_interactive(current_config=None):
 
         api_key = api_key.strip()
 
-        # 3. Auto-fetch live models and prompt model
-        console.print("\n[dim]⏳ Mengambil daftar model aktif dari 9Router...[/dim]")
+        # 3. Auto-fetch live models and validate model
+        console.print("\n[dim]⏳ Mengambil & memverifikasi katalog model aktif dari 9Router...[/dim]")
         from model_fetcher import fetch_provider_models
         live_models = fetch_provider_models("9router", base_url=base_url, api_key=api_key, force_refresh=True)
 
         suggested_model = "ag/gemini-3.7-flash-high"
+        model_ids = []
         if live_models:
             model_ids = [m["id"] for m in live_models]
             if existing_9r.get("model") in model_ids:
                 suggested_model = existing_9r.get("model")
             elif any("gemini-3.7-flash" in m["id"] for m in live_models):
                 suggested_model = next(m["id"] for m in live_models if "gemini-3.7-flash" in m["id"])
+            elif any("gemini" in m["id"] for m in live_models):
+                suggested_model = next(m["id"] for m in live_models if "gemini" in m["id"])
             else:
                 suggested_model = model_ids[0]
 
-            console.print(f"[bold green]✔ Berhasil terhubung! Terdeteksi {len(live_models)} model aktif.[/bold green]")
-            console.print("[dim]Contoh model tersedia: " + ", ".join(model_ids[:5]) + "[/dim]\n")
+            console.print(f"[bold green]✔ Berhasil terhubung! Terdeteksi {len(live_models)} model terdaftar di 9Router.[/bold green]")
+            preview_list = ", ".join(model_ids[:6])
+            if len(model_ids) > 6:
+                preview_list += f", ... (+{len(model_ids)-6} lainnya)"
+            console.print(f"[dim]Contoh model tersedia: {preview_list}[/dim]\n")
         else:
             console.print("[yellow]⚠ Catatan: Tidak dapat mengambil katalog live secara otomatis, masukkan nama model secara manual.[/yellow]\n")
 
-        model = prompt_text_with_esc(
-            "\033[1;36m3. Masukkan Model AI yang Ingin Digunakan\033[0m \033[90m(Esc/e: batal)\033[0m",
-            default=suggested_model
-        )
+        chosen_model = None
+        while True:
+            raw_model = prompt_text_with_esc(
+                "\033[1;36m3. Masukkan Model AI yang Ingin Digunakan\033[0m \033[90m(Esc/e: batal)\033[0m",
+                default=suggested_model
+            )
 
-        if model is None or is_cancel_input(model) or not model.strip():
-            console.print("[yellow]Batal setup 9Router.[/yellow]\n")
-            return current_config or get_active_config()
+            if raw_model is None or is_cancel_input(raw_model) or not raw_model.strip():
+                console.print("[yellow]Batal setup 9Router.[/yellow]\n")
+                return current_config or get_active_config()
 
-        model = model.strip()
+            candidate = raw_model.strip()
+
+            if live_models and model_ids:
+                if candidate in model_ids:
+                    console.print(f"[dim]⏳ Menguji verifikasi model '{candidate}'...[/dim]")
+                    ok, detail = test_model_connectivity(base_url, api_key, candidate)
+                    if ok:
+                        console.print(f"[bold green]✔ Model '{candidate}' terverifikasi aktif & siap digunakan![/bold green]")
+                        chosen_model = candidate
+                        break
+                    else:
+                        console.print(f"\n[bold red]❌ Model '{candidate}' terdaftar namun belum memiliki API Key aktif di 9Router:[/bold red]")
+                        console.print(f"[yellow]Pesan 9Router: {detail}[/yellow]")
+                        console.print(f"[dim]Silakan tambahkan API key provider terkait di dashboard 9Router, atau gunakan model dengan credentials aktif (misal ag/gemini-3.7-flash-high).[/dim]\n")
+                        suggested_model = next((m for m in model_ids if m.startswith("ag/")), model_ids[0])
+                        continue
+
+                # Check suffix / prefix match
+                matched_id = None
+                for m_id in model_ids:
+                    if m_id.endswith(f"/{candidate}") or candidate.endswith(f"/{m_id}") or m_id.lower() == candidate.lower():
+                        matched_id = m_id
+                        break
+
+                if matched_id:
+                    console.print(f"[bold cyan]🔍 Model dicocokkan ke ID resmi: [bold yellow]{matched_id}[/bold yellow][/bold cyan]")
+                    console.print(f"[dim]⏳ Menguji verifikasi model '{matched_id}'...[/dim]")
+                    ok, detail = test_model_connectivity(base_url, api_key, matched_id)
+                    if ok:
+                        console.print(f"[bold green]✔ Model '{matched_id}' terverifikasi aktif & siap digunakan![/bold green]")
+                        chosen_model = matched_id
+                        break
+                    else:
+                        console.print(f"\n[bold red]❌ Model '{matched_id}' gagal diakses: {detail}[/bold red]")
+                        console.print("[yellow]Model ini belum memiliki API key di dashboard 9Router. Pilih model lain yang aktif.[/yellow]\n")
+                        suggested_model = next((m for m in model_ids if m.startswith("ag/")), model_ids[0])
+                        continue
+
+                # Not found at all
+                console.print(f"\n[bold red]❌ Model '{candidate}' TIDAK DITEMUKAN di katalog 9Router Anda![/bold red]")
+                console.print(f"[yellow]Daftar model aktif yang dapat digunakan:[/yellow]")
+                for idx_m, m_id in enumerate(model_ids[:10], 1):
+                    console.print(f"  {idx_m}. [bold cyan]{m_id}[/bold cyan]")
+                if len(model_ids) > 10:
+                    console.print(f"  [dim]... dan {len(model_ids)-10} model lainnya[/dim]")
+                console.print("[dim]Ketik salah satu model di atas (misal ag/gemini-3.7-flash-high).[/dim]\n")
+                suggested_model = next((m for m in model_ids if m.startswith("ag/")), model_ids[0])
+                continue
+            else:
+                console.print(f"[dim]⏳ Menguji akses model '{candidate}' ke 9Router...[/dim]")
+                ok, detail = test_model_connectivity(base_url, api_key, candidate)
+                if ok:
+                    console.print(f"[bold green]✔ Model '{candidate}' terverifikasi aktif![/bold green]")
+                    chosen_model = candidate
+                    break
+                else:
+                    console.print(f"[bold red]⚠ Akses model '{candidate}' gagal: {detail}[/bold red]")
+                    from rich.prompt import Confirm
+                    if Confirm.ask(f"[yellow]Tetap gunakan model '{candidate}' meskipun belum terverifikasi?[/yellow]", default=False):
+                        chosen_model = candidate
+                        break
+                    else:
+                        continue
+
+        model = chosen_model
+
 
     except (KeyboardInterrupt, EOFError):
         console.print("\n[yellow]Batal setup 9Router.[/yellow]\n")
@@ -918,7 +1027,7 @@ def select_thinking_interactive(current_config=None, model_name_display=None, pr
         current_config = get_active_config()
 
     current_mode = str(get_thinking_mode()).lower()
-    curr_model = current_config.get("model", "free-model")
+    curr_model = current_config.get("model", "ag/gemini-3.7-flash-high")
     model_supports_thinking = is_thinking_supported(curr_model)
 
     if is_inline:

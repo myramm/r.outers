@@ -196,7 +196,12 @@ def call_ai(messages, config):
         return result_container["data"]
     elif result_container["error"]:
         if not watcher.stop_requested.is_set():
-            console.print(f"[bold red]API Error:[/bold red] {result_container['error']}\n")
+            err_msg = result_container['error']
+            console.print(f"[bold red]API Error:[/bold red] {err_msg}\n")
+            if "no active credentials" in err_msg.lower() or "model_not_found" in err_msg.lower():
+                console.print(f"[yellow]💡 Tip:[/yellow] Model '[bold cyan]{model_id}[/bold cyan]' tidak ditemukan atau belum memiliki API Key aktif di dashboard provider.")
+                console.print("[dim]Gunakan perintah [bold cyan]/model[/bold cyan] untuk memilih model yang aktif (seperti [bold green]ag/gemini-3.7-flash-high[/bold green]) atau buka [bold cyan]/9router[/bold cyan] untuk cek status.[/dim]\n")
         return None
 
     return None
+
