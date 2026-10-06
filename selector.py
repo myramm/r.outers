@@ -129,13 +129,14 @@ def render_frame_lines(query, filtered_items, selected_idx, scroll_offset, max_v
         
         left_label = f"{name}{active_mark}"
         
-        # Show tag only if terminal is wide enough
-        if width >= 46:
-            right_label = f"{prov} [{tag}]"
-            right_colored = f"{prov} {tag_col}[{tag}]\033[0m"
+        # Always show tag; include short provider name if terminal is wide enough
+        prov_short = prov.split()[0] if prov else ""
+        if width >= 48:
+            right_label = f"{prov_short} [{tag}]"
+            right_colored = f"{prov_short} {tag_col}[{tag}]\033[0m"
         else:
-            right_label = f"{prov}"
-            right_colored = f"{prov}"
+            right_label = f"[{tag}]"
+            right_colored = f"{tag_col}[{tag}]\033[0m"
 
         avail_w = width - 2
         needed_len = len(prefix) + len(left_label) + len(right_label) + 2

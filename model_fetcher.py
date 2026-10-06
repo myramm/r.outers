@@ -9,9 +9,11 @@ CACHE_FILE = os.path.expanduser("~/.routers_models_cache.json")
 CACHE_TTL_SECONDS = 3600  # 1 hour cache validity
 
 FALLBACK_DEFAULT_MODELS = [
-    {"id": "auto", "name": "Auto Router", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "AUTO", "fav": True},
-    {"id": "coding-high", "name": "Coding High Speed", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "CODE", "fav": True},
     {"id": "free-model", "name": "Free Router Model", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
+    {"id": "auto", "name": "Auto Router", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
+    {"id": "deepseek-v4-flash", "name": "DeepSeek V4 Flash", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
+    {"id": "deepseek-4.1-flash", "name": "DeepSeek 4.1 Flash", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FREE", "fav": True},
+    {"id": "coding-high", "name": "Coding High Speed", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "CODE", "fav": True},
     {"id": "gemini-3.8-flash-high", "name": "Gemini 3.8 Flash High", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "FAST", "fav": True},
     {"id": "claude-sonnet-5-thinking-agentic", "name": "Claude Sonnet 5 Thinking Agentic", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "REASON", "fav": True},
     {"id": "deepseek-v4-pro", "name": "DeepSeek V4 Pro", "provider_id": "clouvia", "provider_name": "Clouvia", "tag": "TOP", "fav": True},
@@ -80,12 +82,21 @@ def format_model_entry(raw_model_obj, provider_id="clouvia", provider_name="Clou
                 words.append(w.capitalize())
         name = " ".join(words)
 
+    # Check pricing for free tier (0 pricing)
+    is_zero_price = False
+    if isinstance(pricing, dict):
+        in_p = str(pricing.get("input_per_million", "")).strip()
+        out_p = str(pricing.get("output_per_million", "")).strip()
+        if (in_p in ("0.000000", "0", "0.0", "0.00") or in_p.startswith("0.000000")) and \
+           (out_p in ("0.000000", "0", "0.0", "0.00") or out_p.startswith("0.000000")):
+            is_zero_price = True
+
     # Intelligent tagging and favoritism
     tag = "AI"
     fav = False
 
-    if model_id in ("free-model", "auto"):
-        tag = "FREE" if model_id == "free-model" else "AUTO"
+    if model_id in ("free-model", "auto") or "free" in id_lower or is_zero_price:
+        tag = "FREE"
         fav = True
     elif "coder" in id_lower or "coding" in id_lower:
         tag = "CODE"
