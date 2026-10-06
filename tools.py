@@ -475,8 +475,8 @@ def execute_tool(name, args, auto_approve=False):
             return f"Returncode: {proc.returncode}\nOutput:\n{out}" if out else f"Returncode: {proc.returncode}\n(No output)"
 
         elif name == "read_file":
-            fp = args.get("filepath")
-            if not os.path.exists(fp):
+            fp = args.get("filepath") or args.get("path") or args.get("file_path") or args.get("file") or args.get("filename") or ""
+            if not fp or not os.path.exists(fp):
                 console.print(f"[bold red]✘ RTS > Failed: File '{fp}' not found[/bold red]")
                 return f"Error: File '{fp}' tidak ditemukan."
             with open(fp, "r", encoding="utf-8", errors="ignore") as f:
@@ -486,9 +486,13 @@ def execute_tool(name, args, auto_approve=False):
             return content
 
         elif name == "write_file":
-            fp = args.get("filepath")
-            content = args.get("content", "")
-            os.makedirs(os.path.dirname(os.path.abspath(fp)), exist_ok=True)
+            fp = args.get("filepath") or args.get("path") or args.get("file_path") or args.get("file") or args.get("filename") or ""
+            content = args.get("content") or args.get("code_content") or args.get("text") or ""
+            if not fp:
+                return "Error: filepath tidak boleh kosong."
+            parent_dir = os.path.dirname(os.path.abspath(fp))
+            if parent_dir:
+                os.makedirs(parent_dir, exist_ok=True)
             with open(fp, "w", encoding="utf-8") as f:
                 f.write(content)
             line_count = len(content.splitlines())
@@ -496,10 +500,10 @@ def execute_tool(name, args, auto_approve=False):
             return f"Sukses menulis {fp} ({line_count} baris)"
 
         elif name == "edit_file":
-            fp = args.get("filepath")
-            old_c = args.get("old_content")
-            new_c = args.get("new_content")
-            if not os.path.exists(fp):
+            fp = args.get("filepath") or args.get("path") or args.get("file_path") or args.get("file") or args.get("filename") or ""
+            old_c = args.get("old_content") or args.get("old_string") or args.get("target_content") or ""
+            new_c = args.get("new_content") or args.get("new_string") or args.get("replacement_content") or ""
+            if not fp or not os.path.exists(fp):
                 console.print(f"[bold red]✘ RTS > Failed: File '{fp}' not found[/bold red]")
                 return f"Error: File '{fp}' tidak ditemukan."
             with open(fp, "r", encoding="utf-8", errors="ignore") as f:
@@ -514,8 +518,8 @@ def execute_tool(name, args, auto_approve=False):
             return f"Sukses mengupdate {fp}"
 
         elif name in ("delete_file", "remove_file"):
-            fp = args.get("filepath")
-            if os.path.exists(fp):
+            fp = args.get("filepath") or args.get("path") or args.get("file_path") or args.get("file") or args.get("filename") or ""
+            if fp and os.path.exists(fp):
                 if os.path.isdir(fp):
                     import shutil
                     shutil.rmtree(fp)
@@ -528,7 +532,7 @@ def execute_tool(name, args, auto_approve=False):
                 return f"Error: File '{fp}' tidak ditemukan."
 
         elif name == "list_dir":
-            d = args.get("directory", ".")
+            d = args.get("directory") or args.get("path") or args.get("dir") or "."
             console.print(f"[dim cyan]RTS > Listing {d}[/dim cyan]")
             files = []
             for root, dirs, f_list in os.walk(d):
@@ -541,8 +545,10 @@ def execute_tool(name, args, auto_approve=False):
             return "\n".join(files) if files else "(Direktori kosong)"
 
         elif name == "search_code":
-            q = args.get("query")
-            p = args.get("path", ".")
+            q = args.get("query") or args.get("pattern") or args.get("search_term") or ""
+            p = args.get("path") or args.get("directory") or args.get("dir") or "."
+            if not q:
+                return "Error: query pencarian kosong."
             cmd = f"grep -rnI --exclude-dir={{node_modules,.git,__pycache__}} '{q}' {p} | head -n 25"
             with console.status(f"[bold cyan]RTS > Searching {q}...[/bold cyan]"):
                 res = subprocess.run(cmd, shell=True, capture_output=True, text=True)
