@@ -139,7 +139,7 @@ def fetch_provider_models(provider_id="clouvia", base_url=None, api_key=None, fo
         cached_time = cache_entry.get("timestamp", 0)
         cached_models = cache_entry.get("models", [])
         if cached_models and (now - cached_time) < CACHE_TTL_SECONDS:
-            return cached_models
+            return [format_model_entry(m, provider_id=m.get("provider_id", provider_id), provider_name=m.get("provider_name", provider_id)) for m in cached_models]
 
     full_cfg = load_full_config()
     providers = full_cfg.get("providers", {})
