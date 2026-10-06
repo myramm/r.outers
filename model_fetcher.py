@@ -233,7 +233,13 @@ def fetch_provider_models(provider_id="9router", base_url=None, api_key=None, fo
         try:
             resp = requests.get(url, headers=headers, timeout=6)
             if resp.status_code == 200:
-                data = resp.json()
+                try:
+                    data = resp.json()
+                except Exception:
+                    try:
+                        data, _ = json.JSONDecoder().raw_decode(resp.text.strip())
+                    except Exception:
+                        data = {}
                 raw_items = data.get("data", [])
                 if isinstance(raw_items, list) and raw_items:
                     for item in raw_items:

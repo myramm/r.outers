@@ -80,6 +80,81 @@ ATURAN UTAMA AGENT:
 - Pasang dependensi yang dibutuhkan secara otomatis dengan memanggil tool `execute_bash`.
 """
 
+def robust_json_parse(text):
+    """
+    Safely parses JSON responses from LLM APIs and routers that may contain
+    trailing SSE markers (e.g. 'data: [DONE]'), multiple chunks, or non-standard formatting.
+    """
+    if not text:
+        return {}
+    text_clean = text.strip()
+
+    # 1. Standard json.loads
+    try:
+        return json.loads(text_clean)
+    except Exception:
+        pass
+
+    # 2. Try raw_decode to extract the first valid JSON object (ignoring trailing 'data: [DONE]' or extra chars)
+    try:
+        decoder = json.JSONDecoder()
+        obj, _ = decoder.raw_decode(text_clean)
+        if isinstance(obj, dict):
+            return obj
+    except Exception:
+        pass
+
+    # 3. Parse Server-Sent Events (SSE) format
+    if "data:" in text_clean:
+        lines = [l.strip() for l in text_clean.splitlines() if l.strip()]
+        full_content = ""
+        reasoning_content = ""
+        tool_calls = []
+        finish_reason = "stop"
+        model_name = ""
+        last_id = "stream-resp"
+
+        for line in lines:
+            if line.startswith("data:"):
+                line_data = line[5:].strip()
+                if line_data == "[DONE]":
+                    continue
+                try:
+                    chunk = json.loads(line_data)
+                    last_id = chunk.get("id", last_id)
+                    model_name = chunk.get("model", model_name)
+                    choices = chunk.get("choices", [])
+                    if choices:
+                        delta = choices[0].get("delta", {})
+                        if "content" in delta and delta["content"]:
+                            full_content += delta["content"]
+                        if "reasoning_content" in delta and delta["reasoning_content"]:
+                            reasoning_content += delta["reasoning_content"]
+                        if "reasoning" in delta and delta["reasoning"]:
+                            reasoning_content += delta["reasoning"]
+                        if "tool_calls" in delta:
+                            tool_calls.extend(delta["tool_calls"])
+                        if choices[0].get("finish_reason"):
+                            finish_reason = choices[0]["finish_reason"]
+                except Exception:
+                    pass
+
+        if full_content or reasoning_content or tool_calls:
+            msg = {"role": "assistant", "content": full_content}
+            if reasoning_content:
+                msg["reasoning_content"] = reasoning_content
+            if tool_calls:
+                msg["tool_calls"] = tool_calls
+            return {
+                "id": last_id,
+                "object": "chat.completion",
+                "model": model_name,
+                "choices": [{"index": 0, "message": msg, "finish_reason": finish_reason}]
+            }
+
+    # If all parsing attempts fail, raise clean JSON error
+    return json.loads(text_clean)
+
 def call_ai(messages, config):
     from config import is_thinking_supported, get_thinking_budget
     url = f"{config['base_url']}/chat/completions"
@@ -122,13 +197,13 @@ def call_ai(messages, config):
         try:
             resp = session.post(url, headers=headers, json=payload, timeout=60)
             if resp.status_code == 200:
-                result_container["data"] = resp.json()
+                result_container["data"] = robust_json_parse(resp.text)
             elif resp.status_code == 400 and any(k in resp.text.lower() for k in ("reasoning", "thinking", "extra_forbidden", "unrecognized")):
                 # Graceful fallback: retry without reasoning/thinking parameter if endpoint rejects them
                 fallback_payload = {k: v for k, v in payload.items() if k not in ("reasoning_effort", "thinking", "reasoning")}
                 fb_resp = session.post(url, headers=headers, json=fallback_payload, timeout=60)
                 if fb_resp.status_code == 200:
-                    result_container["data"] = fb_resp.json()
+                    result_container["data"] = robust_json_parse(fb_resp.text)
                 else:
                     result_container["error"] = f"HTTP {fb_resp.status_code}: {fb_resp.text}"
             else:
@@ -139,6 +214,7 @@ def call_ai(messages, config):
             result_container["error"] = str(e)
         finally:
             result_container["done"] = True
+
 
     worker_t = threading.Thread(target=fetch_worker, daemon=True)
     worker_t.start()

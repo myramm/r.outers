@@ -217,7 +217,11 @@ def test_model_connectivity(base_url, api_key, model_id, timeout=8):
                 err_data = r.json()
                 msg = err_data.get("error", {}).get("message") or err_data.get("error") or r.text
             except Exception:
-                msg = r.text
+                try:
+                    err_data, _ = json.JSONDecoder().raw_decode(r.text.strip())
+                    msg = err_data.get("error", {}).get("message") or err_data.get("error") or r.text
+                except Exception:
+                    msg = r.text
             return False, f"HTTP {r.status_code}: {msg}"
     except Exception as e:
         return False, str(e)
