@@ -21,8 +21,6 @@ from styles import (
 )
 
 SLASH_COMMANDS = [
-    {"cmd": "/gas", "desc": "Lanjutkan & paksa agent teruskan task (Force Continue / Resume)"},
-    {"cmd": "/lanjut", "desc": "Lanjutkan proses atau tugas sebelumnya (/continue)"},
     {"cmd": "/status", "desc": "Lihat status aktif agent, antrean task, dan model"},
     {"cmd": "/stop", "desc": "Hentikan atau batalkan task yang sedang aktif (/cancel)"},
     {"cmd": "/setup", "desc": "Pusat Pengaturan (API Key, Izin Shell, Model, Provider, Reset)"},

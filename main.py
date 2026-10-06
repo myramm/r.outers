@@ -167,13 +167,8 @@ def format_model_name(model_id):
 def handle_command(user_input, config, messages, auto_approve):
     cmd_raw = user_input.strip().lower()
 
-    # Force Continue / Resume Commands (gas, lanjut, continue)
-    if cmd_raw in ["gas", "lanjut", "continue", "/gas", "/lanjut", "/continue"]:
-        console.print("\n[bold yellow]⚡ RTS >[/bold yellow] [bold green]Continuing task / Resuming agent...[/bold green]\n")
-        user_input = "Lanjutkan task dan pekerjaan sebelumnya sampai tuntas. Jalankan semua tool yang diperlukan (menulis file, eksekusi bash, pengujian) tanpa berhenti sampai selesai."
-
     # Status Command
-    elif cmd_raw in ["status", "/status"]:
+    if cmd_raw in ["status", "/status"]:
         from queue_manager import has_queued_messages
         active_prov = config.get("provider_id", "clouvia")
         curr_model = config.get('model', 'free-model')
@@ -257,8 +252,8 @@ def handle_command(user_input, config, messages, auto_approve):
             return config, auto_approve
         elif cmd_lower == "/help":
             console.print(Panel("""[bold]Perintah Tersedia:[/bold]
-• [bold yellow]gas[/bold yellow] [dim](atau /gas, lanjut)[/dim]   : Force Continue / Paksa AI melanjutkan task yang berjalan
 • [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif & antrean pesan
+• [bold cyan]stop[/bold cyan] [dim](atau /stop, cancel)[/dim]: Hentikan atau batalkan task aktif
 • [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim]   : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
 • [bold cyan]/style[/bold cyan] [dim](atau /theme)[/dim]    : Ubah Style Terminal & Tema Warna (Agy, Cyber, Powerline, Minimal)
 • [bold cyan]/model[/bold cyan] [nama]         : Pilih / ganti model AI (atau ketik /m)

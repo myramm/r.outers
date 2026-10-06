@@ -372,14 +372,14 @@ def execute_tool(name, args, auto_approve=False):
             cancelled = False
             
             try:
-                with console.status(f"[bold cyan]↳ Running...[/bold cyan] [dim](0.0s | ESC: Stop | Ketik 'gas')[/dim]") as status:
+                with console.status(f"[bold cyan]↳ Running...[/bold cyan] [dim](0.0s | ESC: Stop)[/dim]") as status:
                     def update_bash_status():
                         elapsed = time.time() - start_time
                         txt = watcher.get_buffer_text()
                         if txt:
-                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]\n  [bold cyan]r.outers[/bold cyan] [dim]>[/dim] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n  [bold cyan]r.outers[/bold cyan] [dim]>[/dim] [bold white]{txt}[/bold white][bold green]█[/bold green]")
                         else:
-                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop | Ketik 'gas')[/dim]")
+                            status.update(f"[bold cyan]↳ Running...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]")
 
                     watcher.on_change = update_bash_status
                     watcher.start()
