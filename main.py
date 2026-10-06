@@ -326,11 +326,15 @@ def handle_command(user_input, config, messages, auto_approve):
             return config, auto_approve
         elif cmd_lower == "/memory":
             console.print(Panel(json.dumps(load_memory(), indent=2), title="🧠 r.outers Memory"))
+        elif cmd_lower in ["/update", "/upgrade"]:
+            from updater import run_update
+            run_update(interactive_mode=True)
             return config, auto_approve
         elif cmd_lower == "/help":
             console.print(Panel("""[bold]Perintah Tersedia:[/bold]
 • [bold cyan]status[/bold cyan] [dim](atau /status)[/dim]   : Cek status agent aktif, mode thinking, & antrean pesan
 • [bold cyan]stop[/bold cyan] [dim](atau /stop, cancel)[/dim]: Hentikan atau batalkan task aktif
+• [bold cyan]/update[/bold cyan] [dim](atau /upgrade)[/dim]  : Perbarui RTS ke versi terbaru dari GitHub
 • [bold cyan]/9router[/bold cyan] [dim](atau /9r)[/dim]     : Pusat Manajemen & Setup 9Router (Domain URL, Key, Model, Ping)
 • [bold cyan]/thinking[/bold cyan] [mode]     : Mode Thinking (off, low, medium, high, max, custom) (/think, /t)
 • [bold cyan]/setup[/bold cyan] [dim](atau /config)[/dim]   : Pusat Pengaturan (API Key, Izin Shell, Skill, Model, Provider, Reset)
@@ -427,6 +431,30 @@ def handle_command(user_input, config, messages, auto_approve):
     return config, auto_approve
 
 def main():
+    if len(sys.argv) > 1:
+        sub = sys.argv[1].strip().lower()
+        if sub in ("update", "--update", "upgrade", "--upgrade", "-u"):
+            from updater import run_update
+            run_update(interactive_mode=False)
+            sys.exit(0)
+        elif sub in ("version", "--version", "-v"):
+            from updater import get_version_info
+            console.print(get_version_info())
+            sys.exit(0)
+        elif sub in ("help", "--help", "-h"):
+            console.print(Panel("""[bold]r.outers (RTS) AI Agent CLI[/bold]
+
+[bold cyan]Penggunaan Perintah Terminal:[/bold cyan]
+  [bold yellow]rts[/bold yellow]                Mulai interaktif AI coding agent
+  [bold yellow]rts update[/bold yellow]         Perbarui RTS ke versi terbaru dari GitHub
+  [bold yellow]rts version[/bold yellow]        Lihat informasi versi / commit hash saat ini
+  [bold yellow]rts help[/bold yellow]           Tampilkan bantuan perintah CLI
+
+[bold cyan]Di Dalam Sesi Chat RTS:[/bold cyan]
+  Ketik [bold cyan]/help[/bold cyan] untuk melihat seluruh daftar slash commands interaktif.
+""", title="⚡ RTS CLI Help", border_style="cyan"))
+            sys.exit(0)
+
     show_banner()
     full_cfg = load_full_config()
     config = get_active_config()

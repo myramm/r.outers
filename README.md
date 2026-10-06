@@ -59,6 +59,7 @@ Ketik `/` di dalam prompt CLI untuk memunculkan menu bantuan interaktif:
 | `/add-skill` *[url]* | **Pasang Skill Baru**: Unduh dan pasang skill langsung dari URL repository GitHub |
 | `/model` *(atau `/m`)* | **Interactive Model Selector**: Pilih dan ganti model AI dengan navigasi keyboard yang responsif |
 | `/provider` *(atau `/p`)* | **Ganti / Tambah Provider API** (9Router, Atria, NVIDIA NIM, OpenRouter, Custom) |
+| `/update` *(atau `/upgrade`)* | **Perbarui RTS**: Update otomatis ke versi terbaru dari GitHub |
 | `/list` | Tabel daftar lengkap semua Provider & Model yang tersedia |
 | `/memory` | Lihat dan kelola memori proyek yang tersimpan |
 | `/clear` | Bersihkan riwayat percakapan sesi ini dan refresh konteks AI |
@@ -182,6 +183,28 @@ NINEROUTER_API_KEY=sk-your_9router_key_here
 NVIDIA_API_KEY=nvapi-your_nvidia_api_key_here
 ATRIA_API_KEY=your_atria_api_key_here
 ```
+
+---
+
+## 🚀 Cara Update RTS ke Versi Terbaru
+
+Tersedia beberapa cara mudah untuk memperbarui RTS:
+
+### Cara 1: Dari Terminal / Bash (Paling Cepat)
+```bash
+rts update
+```
+
+### Cara 2: Dari Dalam Sesi Chat RTS
+Cukup ketik perintah slash command berikut di dalam chat:
+```text
+/update
+```
+
+### Cara 3: Lewat Menu Pengaturan (`/setup`)
+1. Jalankan `rts`
+2. Ketik `/setup`
+3. Pilih **🚀 Update RTS ke Versi Terbaru**
 
 ---
 

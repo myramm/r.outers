@@ -162,6 +162,7 @@ def show_settings_hub(current_config, auto_approve_ref=None):
             {"id": "memory", "label": "🧠 Kelola Memori Agent", "status": "[Global/Proyek]"},
             {"id": "test", "label": "🧪 Test Endpoint (Ping API)", "status": "[Uji Latency]"},
             {"id": "diag", "label": "📋 Diagnostik Sistem", "status": "[Status Info]"},
+            {"id": "update", "label": "🚀 Update RTS ke Versi Terbaru", "status": "[Git Pull]"},
             {"id": "reset", "label": "🔄 Reset ke Setelan Pabrik", "status": "[Factory Reset]"},
             {"id": "exit", "label": "⬅️ Selesai & Kembali ke Chat", "status": "[Kembali]"}
         ]
@@ -262,6 +263,12 @@ def show_settings_hub(current_config, auto_approve_ref=None):
         elif chosen_action == "diag":
             handle_system_diagnostics(get_active_config(), auto_approve_ref)
             console.print("[dim]Tekan ESC atau Enter untuk kembali...[/dim]")
+            wait_esc_or_enter()
+
+        elif chosen_action == "update":
+            from updater import run_update
+            run_update(interactive_mode=True)
+            console.print("\n[dim]Tekan ESC atau Enter untuk kembali ke menu pengaturan...[/dim]")
             wait_esc_or_enter()
 
         elif chosen_action == "reset":
