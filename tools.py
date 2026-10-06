@@ -340,6 +340,47 @@ def get_bash_action_label(cmd):
     else:
         return f"Running {cmd_s}"
 
+def prompt_confirm_bash_execution():
+    """
+    Interactive single-keypress confirmation for executing bash commands:
+    - [y] or [Enter]: Run command
+    - [n] or [Esc] or [e] or [Ctrl+C]: Cancel command immediately
+    - [a]: Enable Always Allow and run command
+    """
+    if not sys.stdin.isatty():
+        try:
+            val = input("Jalankan? [y/n/a] (y): ").strip().lower()
+            return val if val else "y"
+        except Exception:
+            return "n"
+
+    from selector import read_key_raw_fd
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+
+    console.print("[dim]Opsi: [bold green][y/Enter][/bold green] Jalankan  [bold red][n/Esc][/bold red] Tolak  [bold cyan][a][/bold cyan] Selalu Izinkan (Always Allow)[/dim]")
+    sys.stdout.write("\033[1;33mJalankan? [y/n/a] (y):\033[0m ")
+    sys.stdout.flush()
+
+    try:
+        tty.setraw(fd)
+        while True:
+            k = read_key_raw_fd(fd)
+            if k in ('ESC', 'CTRL_C', 'n', 'N', 'e', 'E', 'q', 'Q'):
+                sys.stdout.write("\r\033[2K\033[1;31m✘ Dibatalkan oleh pengguna (Esc/n)\033[0m\r\n")
+                sys.stdout.flush()
+                return "n"
+            elif k in ('y', 'Y', 'ENTER'):
+                sys.stdout.write("\r\033[2K\033[1;32m✔ Menjalankan perintah...\033[0m\r\n")
+                sys.stdout.flush()
+                return "y"
+            elif k in ('a', 'A'):
+                sys.stdout.write("\r\033[2K\033[1;36m✔ Always Allow diaktifkan. Menjalankan perintah...\033[0m\r\n")
+                sys.stdout.flush()
+                return "a"
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
 def execute_tool(name, args, auto_approve=False):
     try:
         if name == "execute_bash":
@@ -352,8 +393,7 @@ def execute_tool(name, args, auto_approve=False):
             is_always_allowed = auto_approve or (full_cfg.get("permission_mode") == "always_allow") or full_cfg.get("auto_approve", False)
 
             if not is_always_allowed:
-                console.print("[dim]Opsi: [y] Jalankan  [n] Tolak  [a] Selalu Izinkan (Always Allow)[/dim]")
-                resp = Prompt.ask("[yellow]Jalankan?[/yellow]", choices=["y", "n", "a", "always"], default="y").strip().lower()
+                resp = prompt_confirm_bash_execution()
                 if resp == "n":
                     return "Dibatalkan oleh pengguna."
                 elif resp in ("a", "always"):
