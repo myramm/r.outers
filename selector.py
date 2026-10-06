@@ -177,15 +177,72 @@ def render_frame_lines(query, filtered_items, selected_idx, scroll_offset, max_v
     return lines
 
 def is_cancel_input(val):
-    if not val:
-        return False
+    if val is None:
+        return True
     val_clean = str(val).strip().lower()
-    return val_clean in ("e", "esc", "q", "exit", "batal", "back", "\x1b") or val_clean.startswith("\x1b")
+    return (
+        val_clean in ("e", "esc", "q", "exit", "batal", "back", "\x1b", "^[", "^[^[", "^[^[^[", "^[^[^[^[")
+        or "\x1b" in val_clean
+        or "^[" in val_clean
+        or val_clean.startswith("^")
+    )
+
+def prompt_text_with_esc(prompt_text, default="", mask=False):
+    """
+    Interactive text input that handles physical/virtual ESC key immediately without printing '^['
+    and supports inline editing, backspace, and default value.
+    """
+    if not sys.stdin.isatty():
+        try:
+            def_str = f" ({default})" if default else ""
+            val = input(f"{prompt_text}{def_str}: ").strip()
+            return val if val else default
+        except Exception:
+            return None
+
+    fd = sys.stdin.fileno()
+    old_settings = termios.tcgetattr(fd)
+
+    buffer = ""
+    def_disp = f" \033[90m({default})\033[0m" if default else ""
+    sys.stdout.write(f"\r\033[2K{prompt_text}{def_disp}: ")
+    sys.stdout.flush()
+
+    try:
+        tty.setraw(fd)
+        while True:
+            k = read_key_raw_fd(fd)
+            if k in ('ESC', 'CTRL_C'):
+                sys.stdout.write("\r\033[2K\r\n")
+                sys.stdout.flush()
+                return None
+            elif k in ('ENTER',):
+                sys.stdout.write("\r\033[2K\r\n")
+                sys.stdout.flush()
+                final_val = buffer.strip() if buffer.strip() else default
+                return final_val
+            elif k in ('BACKSPACE',):
+                if buffer:
+                    buffer = buffer[:-1]
+            elif k in ('CTRL_U',):
+                buffer = ""
+            elif k and isinstance(k, str) and not k.startswith(('UP', 'DOWN', 'LEFT', 'RIGHT', 'TAB', 'PAGE_', 'SHIFT_', 'CTRL_')):
+                buffer += k
+
+            disp_b = ("*" * len(buffer)) if (mask and buffer) else buffer
+            if not buffer and default:
+                disp_txt = f"{prompt_text} \033[90m({default})\033[0m: "
+            else:
+                disp_txt = f"{prompt_text}: \033[1;33m{disp_b}\033[0m"
+            
+            sys.stdout.write(f"\r\033[2K{disp_txt}")
+            sys.stdout.flush()
+    finally:
+        termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
 def setup_9router_interactive(current_config=None):
-    from rich.prompt import Prompt
     from config import get_active_config
-    console.print("\n[bold cyan]⚡ Setup & Hubungkan 9Router[/bold cyan] [dim](Ketik 'esc' / 'e' kapan saja untuk batal)[/dim]")
+    console.print("\n[bold cyan]⚡ Setup & Hubungkan 9Router[/bold cyan] [dim](Tekan Esc atau ketik 'e' untuk batal)[/dim]")
     console.print("[dim]Masukkan URL domain 9Router Anda (misal Railway/VPS), API Key, dan pilih Model AI.[/dim]\n")
 
     full_cfg = load_full_config()
@@ -195,15 +252,16 @@ def setup_9router_interactive(current_config=None):
     try:
         # 1. Masukkan Domain / Base URL
         def_url = existing_9r.get("base_url", "")
-        raw_url = Prompt.ask(
-            "[bold cyan]1. Masukkan Domain / Base URL 9Router[/bold cyan] [dim](contoh: https://your-9router.up.railway.app - Esc/e: batal)[/dim]",
+        raw_url = prompt_text_with_esc(
+            "\033[1;36m1. Masukkan Domain / Base URL 9Router\033[0m \033[90m(Esc/e: batal)\033[0m",
             default=def_url if def_url else ""
-        ).strip()
+        )
         
-        if is_cancel_input(raw_url):
+        if raw_url is None or is_cancel_input(raw_url) or not raw_url.strip():
             console.print("[yellow]Batal setup 9Router.[/yellow]\n")
             return current_config or get_active_config()
 
+        raw_url = raw_url.strip()
         if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
             raw_url = "https://" + raw_url
         raw_url = raw_url.rstrip("/")
@@ -213,14 +271,17 @@ def setup_9router_interactive(current_config=None):
 
         # 2. Masukkan API Key
         def_key = existing_9r.get("api_key", "")
-        api_key = Prompt.ask(
-            "[bold cyan]2. Masukkan / Paste API Key 9Router[/bold cyan] [dim](Esc/e: batal)[/dim]",
-            default=def_key if def_key else ""
-        ).strip()
+        api_key = prompt_text_with_esc(
+            "\033[1;36m2. Masukkan / Paste API Key 9Router\033[0m \033[90m(Esc/e: batal)\033[0m",
+            default=def_key if def_key else "",
+            mask=True
+        )
 
-        if not api_key or is_cancel_input(api_key):
+        if api_key is None or is_cancel_input(api_key) or not api_key.strip():
             console.print("[yellow]Batal setup 9Router (API Key kosong atau dibatalkan).[/yellow]\n")
             return current_config or get_active_config()
+
+        api_key = api_key.strip()
 
         # 3. Auto-fetch live models and prompt model
         console.print("\n[dim]⏳ Mengambil daftar model aktif dari 9Router...[/dim]")
@@ -242,17 +303,16 @@ def setup_9router_interactive(current_config=None):
         else:
             console.print("[yellow]⚠ Catatan: Tidak dapat mengambil katalog live secara otomatis, masukkan nama model secara manual.[/yellow]\n")
 
-        model = Prompt.ask(
-            "[bold cyan]3. Masukkan Model AI yang Ingin Digunakan[/bold cyan] [dim](Esc/e: batal)[/dim]",
+        model = prompt_text_with_esc(
+            "\033[1;36m3. Masukkan Model AI yang Ingin Digunakan\033[0m \033[90m(Esc/e: batal)\033[0m",
             default=suggested_model
-        ).strip()
+        )
 
-        if is_cancel_input(model):
+        if model is None or is_cancel_input(model) or not model.strip():
             console.print("[yellow]Batal setup 9Router.[/yellow]\n")
             return current_config or get_active_config()
 
-        if not model:
-            model = suggested_model
+        model = model.strip()
 
     except (KeyboardInterrupt, EOFError):
         console.print("\n[yellow]Batal setup 9Router.[/yellow]\n")
@@ -275,7 +335,6 @@ def setup_9router_interactive(current_config=None):
     return get_active_config()
 
 def prompt_add_custom_model_interactive(provider_id=None, current_config=None, initial_model_id=""):
-    from rich.prompt import Prompt
     from config import load_full_config, save_full_config, get_active_config, add_custom_model, is_thinking_supported
     
     full_cfg = load_full_config()
@@ -286,24 +345,28 @@ def prompt_add_custom_model_interactive(provider_id=None, current_config=None, i
 
     console.print(f"\n[bold cyan]➕ Tambah Model Custom Baru ([yellow]{prov_name}[/yellow])[/bold cyan]")
     try:
-        model_id = Prompt.ask(
-            "[bold cyan]Masukkan ID / Nama Model[/bold cyan] [dim](contoh: ag/gemini-3.7-flash-high, claude-3-7-sonnet, deepseek-r1) (Esc/e: batal)[/dim]",
+        model_id = prompt_text_with_esc(
+            "\033[1;36mMasukkan ID / Nama Model\033[0m \033[90m(Esc/e: batal)\033[0m",
             default=initial_model_id
-        ).strip()
+        )
     except (KeyboardInterrupt, EOFError):
         return current_config or get_active_config()
 
-    if is_cancel_input(model_id) or not model_id:
+    if model_id is None or is_cancel_input(model_id) or not model_id.strip():
         console.print("[yellow]Batal menambah model.[/yellow]\n")
         return current_config or get_active_config()
 
+    model_id = model_id.strip()
+
     try:
-        display_name = Prompt.ask(
-            "[bold cyan]Nama Tampilan (Opsional)[/bold cyan] [dim](tekan Enter untuk default)[/dim]",
+        display_name = prompt_text_with_esc(
+            "\033[1;36mNama Tampilan (Opsional)\033[0m \033[90m(tekan Enter untuk default)\033[0m",
             default=model_id
-        ).strip()
+        )
     except (KeyboardInterrupt, EOFError):
         display_name = model_id
+
+    display_name = display_name.strip() if (display_name and display_name.strip()) else model_id
 
     add_custom_model(model_id, provider_id=provider_id, name=display_name, tag="CUSTOM", set_as_active=True)
     
@@ -499,11 +562,12 @@ def show_9router_hub_interactive(current_config=None):
         return setup_9router_interactive(current_config)
     elif chosen == "change_url":
         def_url = entry.get("base_url", "")
-        try:
-            raw_url = Prompt.ask("[bold cyan]Masukkan Domain / Base URL 9Router baru[/bold cyan] [dim](Esc/e: batal)[/dim]", default=def_url).strip()
-        except (KeyboardInterrupt, EOFError):
-            return get_active_config()
-        if not is_cancel_input(raw_url) and raw_url:
+        raw_url = prompt_text_with_esc(
+            "\033[1;36mMasukkan Domain / Base URL 9Router baru\033[0m \033[90m(Esc/e: batal)\033[0m",
+            default=def_url if def_url else ""
+        )
+        if raw_url is not None and not is_cancel_input(raw_url) and raw_url.strip():
+            raw_url = raw_url.strip()
             if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
                 raw_url = "https://" + raw_url
             raw_url = raw_url.rstrip("/")
@@ -514,19 +578,25 @@ def show_9router_hub_interactive(current_config=None):
             full_cfg["providers"] = providers
             save_full_config(full_cfg)
             console.print(f"[bold green]✔ Base URL 9Router diperbarui ke:[/bold green] [cyan]{raw_url}[/cyan]\n")
+        else:
+            console.print("[yellow]Batal mengubah URL.[/yellow]\n")
         return get_active_config()
     elif chosen == "change_key":
         def_key = entry.get("api_key", "")
-        try:
-            raw_key = Prompt.ask("[bold cyan]Masukkan / Paste API Key 9Router baru[/bold cyan] [dim](Esc/e: batal)[/dim]", default=def_key).strip()
-        except (KeyboardInterrupt, EOFError):
-            return get_active_config()
-        if not is_cancel_input(raw_key) and raw_key:
+        raw_key = prompt_text_with_esc(
+            "\033[1;36mMasukkan / Paste API Key 9Router baru\033[0m \033[90m(Esc/e: batal)\033[0m",
+            default=def_key if def_key else "",
+            mask=True
+        )
+        if raw_key is not None and not is_cancel_input(raw_key) and raw_key.strip():
+            raw_key = raw_key.strip()
             entry["api_key"] = raw_key
             providers["9router"] = entry
             full_cfg["providers"] = providers
             save_full_config(full_cfg)
             console.print(f"[bold green]✔ API Key 9Router berhasil diperbarui![/bold green]\n")
+        else:
+            console.print("[yellow]Batal mengubah API Key.[/yellow]\n")
         return get_active_config()
     elif chosen == "select_model":
         if not url or not key:
