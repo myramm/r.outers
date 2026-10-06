@@ -375,13 +375,17 @@ def execute_tool(name, args, auto_approve=False):
             current_tip = get_turn_tip()
             tip_line = f"  [dim]└ Tip: {current_tip}[/dim]"
 
+            from styles import get_safe_width
+
             try:
                 with console.status(f"[bold cyan]Running command...[/bold cyan] [dim](0.0s | ESC: Stop)[/dim]\n{tip_line}") as status:
                     def update_bash_status():
                         elapsed = time.time() - start_time
                         txt = watcher.get_buffer_text()
                         if txt:
-                            status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                            safe_w = get_safe_width()
+                            div_str = f"[dim]{'─' * safe_w}[/dim]"
+                            status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}\n{div_str}\n> [bold green]{txt}[/bold green][bold green]█[/bold green]")
                         else:
                             status.update(f"[bold cyan]Running command...[/bold cyan] [dim]({elapsed:.1f}s | ESC: Stop)[/dim]\n{tip_line}")
 

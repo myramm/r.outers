@@ -154,12 +154,16 @@ def call_ai(messages, config):
     current_tip = get_turn_tip()
     tip_line = f"  [dim]└ Tip: {current_tip}[/dim]"
 
+    from styles import get_safe_width
+
     try:
         with console.status(f"{status_label}\n{tip_line}") as status:
             def update_thinking_status():
                 txt = watcher.get_buffer_text()
                 if txt:
-                    status.update(f"{status_label}\n{tip_line}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                    safe_w = get_safe_width()
+                    div_str = f"[dim]{'─' * safe_w}[/dim]"
+                    status.update(f"{status_label}\n{tip_line}\n{div_str}\n> [bold green]{txt}[/bold green][bold green]█[/bold green]")
                 else:
                     status.update(f"{status_label}\n{tip_line}")
 
