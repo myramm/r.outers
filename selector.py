@@ -86,6 +86,7 @@ def get_tag_color(tag):
         "TOP": "\033[1;31m",
         "SPEED": "\033[1;33m",
         "LOCAL": "\033[1;37m",
+        "SETUP": "\033[1;33m",
         "CUSTOM": "\033[36m"
     }
     return mapping.get(tag, "\033[37m")
@@ -174,6 +175,78 @@ def render_frame_lines(query, filtered_items, selected_idx, scroll_offset, max_v
     lines.append(footer)
     
     return lines
+
+def setup_9router_interactive(current_config=None):
+    from rich.prompt import Prompt
+    console.print("\n[bold cyan]⚡ Setup & Hubungkan 9Router[/bold cyan]")
+    console.print("[dim]Masukkan URL domain 9Router Anda (misal Railway/VPS), API Key, dan pilih Model AI.[/dim]\n")
+
+    full_cfg = load_full_config()
+    providers = full_cfg.get("providers", {})
+    existing_9r = providers.get("9router", {})
+
+    # 1. Masukkan Domain / Base URL
+    def_url = existing_9r.get("base_url", "")
+    raw_url = Prompt.ask("[bold cyan]1. Masukkan Domain / Base URL 9Router[/bold cyan]", default=def_url if def_url else "https://9router-production-b35d.up.railway.app").strip()
+    if not raw_url or raw_url.lower() == "e":
+        console.print("[yellow]Batal setup 9Router.[/yellow]\n")
+        from config import get_active_config
+        return current_config or get_active_config()
+    if not raw_url.startswith("http://") and not raw_url.startswith("https://"):
+        raw_url = "https://" + raw_url
+    raw_url = raw_url.rstrip("/")
+    if not raw_url.endswith("/v1"):
+        raw_url = f"{raw_url}/v1"
+    base_url = raw_url
+
+    # 2. Masukkan API Key
+    def_key = existing_9r.get("api_key", "")
+    api_key = Prompt.ask("[bold cyan]2. Masukkan / Paste API Key 9Router[/bold cyan]", default=def_key if def_key else "").strip()
+    if not api_key or api_key.lower() == "e":
+        console.print("[yellow]Batal setup 9Router (API Key kosong).[/yellow]\n")
+        from config import get_active_config
+        return current_config or get_active_config()
+
+    # 3. Auto-fetch live models and prompt model
+    console.print("\n[dim]⏳ Mengambil daftar model aktif dari 9Router...[/dim]")
+    from model_fetcher import fetch_provider_models
+    live_models = fetch_provider_models("9router", base_url=base_url, api_key=api_key, force_refresh=True)
+
+    suggested_model = "ag/gemini-3.7-flash-high"
+    if live_models:
+        model_ids = [m["id"] for m in live_models]
+        if existing_9r.get("model") in model_ids:
+            suggested_model = existing_9r.get("model")
+        elif any("gemini-3.7-flash" in m["id"] for m in live_models):
+            suggested_model = next(m["id"] for m in live_models if "gemini-3.7-flash" in m["id"])
+        else:
+            suggested_model = model_ids[0]
+
+        console.print(f"[bold green]✔ Berhasil terhubung! Terdeteksi {len(live_models)} model aktif.[/bold green]")
+        console.print("[dim]Contoh model tersedia: " + ", ".join(model_ids[:5]) + "[/dim]\n")
+    else:
+        console.print("[yellow]⚠ Catatan: Tidak dapat mengambil katalog live secara otomatis, masukkan nama model secara manual.[/yellow]\n")
+
+    model = Prompt.ask("[bold cyan]3. Masukkan Model AI yang Ingin Digunakan[/bold cyan]", default=suggested_model).strip()
+    if not model or model.lower() == "e":
+        model = suggested_model
+
+    providers["9router"] = {
+        "name": "9Router",
+        "base_url": base_url,
+        "api_key": api_key,
+        "model": model
+    }
+    full_cfg["active_provider"] = "9router"
+    full_cfg["providers"] = providers
+    save_full_config(full_cfg)
+
+    console.print(f"\n[bold green]✔ 9Router berhasil dihubungkan dan diaktifkan![/bold green]")
+    console.print(f"  • Base URL: [cyan]{base_url}[/cyan]")
+    console.print(f"  • Model Aktif: [bold yellow]{model}[/bold yellow]\n")
+
+    from config import get_active_config
+    return get_active_config()
 
 def select_model_interactive(current_config):
     if not sys.stdin.isatty():
@@ -320,8 +393,14 @@ def select_model_interactive(current_config):
                 sys.stdout.flush()
                 termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
 
+                if target_model_id == "setup_9router":
+                    return setup_9router_interactive(current_config)
+
                 full_cfg = load_full_config()
                 providers = full_cfg.get("providers", {})
+
+                if target_prov_id == "9router" and (not providers.get("9router", {}).get("base_url") or not providers.get("9router", {}).get("api_key")):
+                    return setup_9router_interactive(current_config)
                 
                 if target_prov_id not in providers and target_prov_id in PRESET_PROVIDERS:
                     preset = PRESET_PROVIDERS[target_prov_id]

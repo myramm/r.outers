@@ -279,8 +279,17 @@ def get_all_available_models(current_config=None, force_refresh=False):
     active_prov = full_cfg.get("active_provider", "clouvia")
     providers = full_cfg.get("providers", {})
 
-    all_models = []
-    seen_ids = set()
+    all_models = [
+        {
+            "id": "setup_9router",
+            "name": "⚡ Hubungkan 9Router (Domain, Key, Model)",
+            "provider_id": "9router",
+            "provider_name": "9Router",
+            "tag": "SETUP",
+            "fav": True
+        }
+    ]
+    seen_ids = {("9router", "setup_9router")}
 
     # 1. Fetch live models for active provider
     active_models = fetch_provider_models(active_prov, force_refresh=force_refresh)

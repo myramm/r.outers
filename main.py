@@ -16,7 +16,7 @@ from config import (
 from memory import load_memory
 from tools import execute_tool
 from client import build_system_prompt, call_ai
-from selector import select_model_interactive, select_thinking_interactive
+from selector import select_model_interactive, select_thinking_interactive, setup_9router_interactive
 from settings import show_settings_hub
 from slash_prompt import get_smart_input
 from queue_manager import get_next_queued_message, has_queued_messages
@@ -59,6 +59,7 @@ def handle_model_menu(config):
     for idx, m in enumerate(rec_models, 1):
         lines.append(f"  [bold yellow]{idx}[/bold yellow]. {m}")
     lines.append("  [bold green]s / m[/bold green]. Buka visual model picker interaktif lengkap (100+ model)")
+    lines.append("  [bold cyan]9[/bold cyan]. Setup 9Router (Input Domain, API Key & Model)")
     lines.append("  [bold cyan]c[/bold cyan]. Ketik nama model custom manual")
     lines.append("  [bold magenta]p[/bold magenta]. Ganti / Tambah Provider")
     lines.append("  [bold blue]l[/bold blue]. Lihat tabel lengkap semua Provider & Model")
@@ -66,7 +67,7 @@ def handle_model_menu(config):
 
     console.print(Panel("\n".join(lines), title="🤖 Pengaturan Model & Provider"))
 
-    choice = Prompt.ask("\nPilih opsi (1-{}, s, c, p, l, e)".format(len(rec_models)), default="1").strip()
+    choice = Prompt.ask("\nPilih opsi (1-{}, s, 9, c, p, l, e)".format(len(rec_models)), default="1").strip()
     
     # Check Exit / Cancel
     if choice.lower() == "e":
@@ -75,6 +76,8 @@ def handle_model_menu(config):
 
     if choice.lower() in ("s", "m"):
         return select_model_interactive(config)
+    elif choice.lower() in ("9", "9router"):
+        return setup_9router_interactive(config)
     elif choice.lower() == "p":
         return switch_provider()
     elif choice.lower() == "l":
