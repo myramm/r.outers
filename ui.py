@@ -14,9 +14,11 @@ RTS_TIPS = [
     "Jalankan /status untuk melihat status model, thinking, dan agent aktif",
     "Ketik /theme untuk memilih tema warna tampilan terminal",
     "Gunakan /clear untuk membersihkan riwayat percakapan",
-    "Tekan Tab saat mengetik / untuk melihat rekomendasi perintah",
+    "Tekan Tab saat mengetik / untuk autocomplete perintah",
     "Gunakan /add-skill <url> untuk memasang skill langsung dari GitHub",
     "Gunakan /memory untuk melihat memori jangka panjang yang tersimpan",
+    "Tekan ESC untuk menghentikan proses generasi AI seketika",
+    "Ketik /stop untuk membatalkan eksekusi task yang sedang berjalan",
     "RTS otomatis menjalankan tool coding dan pengeditan file saat diminta"
 ]
 
@@ -38,5 +40,6 @@ def print_markdown(content):
 
 def show_subtle_tip():
     tip = random.choice(RTS_TIPS)
-    console.print(f"\n[dim]Tips: {tip}[/dim]")
+    console.print(f"\n[dim italic]Tips: {tip}[/dim italic]")
+
 
