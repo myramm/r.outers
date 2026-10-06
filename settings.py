@@ -148,6 +148,9 @@ def show_settings_hub(current_config, auto_approve_ref=None):
         from config import get_thinking_mode
         thinking_mode = str(get_thinking_mode()).capitalize()
 
+        from styles import get_current_style_settings
+        _, cur_theme = get_current_style_settings()
+
         items = [
             {"id": "api_key", "label": "🔑 Kelola API Key", "status": f"{active_prov}: {key_status}"},
             {"id": "provider", "label": "📡 Ganti / Tambah Provider", "status": f"[{active_prov}]"},
