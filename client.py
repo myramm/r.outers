@@ -143,20 +143,31 @@ def call_ai(messages, config):
     worker_t = threading.Thread(target=fetch_worker, daemon=True)
     worker_t.start()
 
+    from ui import get_random_tip
+
     if model_supports_thinking and thinking_mode != "off":
         th_tag = thinking_mode.capitalize()
         status_label = f"[bold cyan]Thinking ({th_tag})...[/bold cyan] [dim](ESC: Stop)[/dim]"
     else:
         status_label = "[bold cyan]Thinking...[/bold cyan] [dim](ESC: Stop)[/dim]"
 
+    current_tip = get_random_tip()
+    tip_start_time = time.time()
+
     try:
-        with console.status(status_label) as status:
+        with console.status(f"{status_label}\n  [dim italic]Tips: {current_tip}[/dim italic]") as status:
             def update_thinking_status():
+                nonlocal current_tip, tip_start_time
+                if time.time() - tip_start_time > 4.5:
+                    current_tip = get_random_tip()
+                    tip_start_time = time.time()
+
                 txt = watcher.get_buffer_text()
+                tip_line = f"  [dim italic]Tips: {current_tip}[/dim italic]"
                 if txt:
-                    status.update(f"{status_label}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
+                    status.update(f"{status_label}\n{tip_line}\n  [bold cyan]>[/bold cyan] [bold white]{txt}[/bold white][bold green]█[/bold green]")
                 else:
-                    status.update(status_label)
+                    status.update(f"{status_label}\n{tip_line}")
 
             watcher.on_change = update_thinking_status
             watcher.start()
